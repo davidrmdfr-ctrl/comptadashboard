@@ -6,7 +6,9 @@
       "Bash(git config *)",
       "Bash(timeout 10 venv/Scripts/uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000)",
       "Bash(git add *)",
-      "Bash(git commit -m 'Fix database import and add working initialization *)"
+      "Bash(git commit -m 'Fix database import and add working initialization *)",
+      "Bash(venv/Scripts/python test_market.py)",
+      "Bash(git commit -m 'Add market data refresh feature with yfinance integration *)"
     ]
   }
 }

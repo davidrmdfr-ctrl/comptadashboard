@@ -44,14 +44,9 @@ async def health():
     """Health check endpoint"""
     return {"status": "ok", "environment": settings.ENVIRONMENT}
 
-# TODO: Add routes
-# from backend.routes import accounts, investments, properties, snapshots, tax, forecast
-# app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
-# app.include_router(investments.router, prefix="/api/investments", tags=["investments"])
-# app.include_router(properties.router, prefix="/api/properties", tags=["properties"])
-# app.include_router(snapshots.router, prefix="/api/snapshots", tags=["snapshots"])
-# app.include_router(tax.router, prefix="/api/tax", tags=["tax"])
-# app.include_router(forecast.router, prefix="/api/forecast", tags=["forecast"])
+# Include route handlers
+from backend.routes import market
+app.include_router(market.router, prefix="/api/market", tags=["market"])
 
 if __name__ == "__main__":
     import uvicorn
