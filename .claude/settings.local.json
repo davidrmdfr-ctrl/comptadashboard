@@ -9,7 +9,8 @@
       "Bash(git commit -m 'Fix database import and add working initialization *)",
       "Bash(venv/Scripts/python test_market.py)",
       "Bash(git commit -m 'Add market data refresh feature with yfinance integration *)",
-      "Bash(git commit -m 'Add API endpoints for accounts, investments, and properties *)"
+      "Bash(git commit -m 'Add API endpoints for accounts, investments, and properties *)",
+      "Bash(git commit -m 'Build React + Vite dashboard frontend *)"
     ]
   }
 }
