@@ -45,8 +45,11 @@ async def health():
     return {"status": "ok", "environment": settings.ENVIRONMENT}
 
 # Include route handlers
-from backend.routes import market
+from backend.routes import market, accounts, investments, properties
 app.include_router(market.router, prefix="/api/market", tags=["market"])
+app.include_router(accounts.router, prefix="/api/accounts", tags=["accounts"])
+app.include_router(investments.router, prefix="/api/investments", tags=["investments"])
+app.include_router(properties.router, prefix="/api/properties", tags=["properties"])
 
 if __name__ == "__main__":
     import uvicorn
