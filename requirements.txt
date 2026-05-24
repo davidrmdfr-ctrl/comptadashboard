@@ -1,0 +1,12 @@
+fastapi==0.104.1
+uvicorn==0.24.0
+sqlalchemy==2.0.23
+sqlcipher3-binary==3.45.3.0
+pydantic==2.5.0
+python-dotenv==1.0.0
+openpyxl==3.11.0
+requests==2.31.0
+yfinance==0.2.33
+pytest==7.4.3
+pytest-cov==4.1.0
+pytz==2023.3
