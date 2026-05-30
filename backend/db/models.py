@@ -16,7 +16,10 @@ class CashAccount(Base):
     exchange_rate = Column(Float, nullable=False)  # Rate to EUR
     account_name = Column(String(100), nullable=True)  # e.g., "HSBC SG", "Interactive Broker"
     account_type = Column(String(50), nullable=True)  # e.g., "checking", "savings"
+    parent_id = Column(Integer, ForeignKey("cash_accounts.id"), nullable=True)  # For sub-accounts
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    children = relationship("CashAccount", remote_side=[id], cascade="all, delete-orphan", single_parent=True)
 
     def __repr__(self):
         return f"<CashAccount {self.currency} {self.amount}>"
@@ -30,7 +33,7 @@ class Investment(Base):
     id = Column(Integer, primary_key=True)
     symbol = Column(String(10), nullable=False)  # e.g., "DBS", "3 rue des roses"
     name = Column(String(100), nullable=True)
-    investment_type = Column(String(20), nullable=False)  # "stock", "etf", "bond", "crypto"
+    investment_type = Column(String(20), nullable=False)  # "stock", "etf", "bond", "crypto", "broker"
     quantity = Column(Float, nullable=False)
     cost_basis = Column(Float, nullable=False)  # Total cost
     cost_per_unit = Column(Float, nullable=True)
@@ -40,7 +43,11 @@ class Investment(Base):
     yield_pct = Column(Float, nullable=True)  # Yield or return %
     acquisition_date = Column(Date, nullable=True)
     account_name = Column(String(100), nullable=True)  # e.g., "HSBC HK", "Interactive Broker"
+    is_broker = Column(Boolean, default=False)  # True if this is a broker account
+    parent_id = Column(Integer, ForeignKey("investments.id"), nullable=True)  # Parent broker
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    children = relationship("Investment", remote_side=[id], cascade="all, delete-orphan", single_parent=True)
 
     def __repr__(self):
         return f"<Investment {self.symbol} x{self.quantity}>"
@@ -205,3 +212,27 @@ class Forecast(Base):
 
     def __repr__(self):
         return f"<Forecast {self.projection_date} +{self.months_ahead}m>"
+
+# ============================================================================
+# LOANS (Mortgages, personal loans, car loans, etc.)
+# ============================================================================
+class Loan(Base):
+    __tablename__ = "loans"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)  # e.g., "Roses Mortgage"
+    loan_type = Column(String(20), nullable=False)  # "mortgage", "personal", "car", "business"
+    original_amount = Column(Float, nullable=False)  # Original loan amount
+    original_currency = Column(String(3), default="EUR")
+    principal_left = Column(Float, nullable=False)  # Remaining principal
+    next_payment_amount = Column(Float, nullable=False)  # Next payment due
+    next_payment_date = Column(Date, nullable=False)  # Next payment date
+    interest_rate = Column(Float, nullable=True)  # Annual interest rate %
+    payment_frequency = Column(String(20), nullable=False, default="monthly")  # "monthly", "quarterly", etc.
+    start_date = Column(Date, nullable=False)  # Loan start date
+    end_date = Column(Date, nullable=True)  # Expected end date
+    notes = Column(Text, nullable=True)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Loan {self.name} {self.principal_left}>"

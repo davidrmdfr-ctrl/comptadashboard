@@ -23,7 +23,12 @@ export default function PropertiesTable({ properties }) {
           <tr className="border-b border-gray-200 bg-gray-50">
             <th className="px-6 py-3 text-left font-semibold text-gray-700">Name</th>
             <th className="px-6 py-3 text-left font-semibold text-gray-700">Type</th>
-            <th className="px-6 py-3 text-right font-semibold text-gray-700">Current Value</th>
+            <th className="px-6 py-3 text-right font-semibold text-gray-700">
+              Current Value
+              <div className="text-sm font-bold text-blue-600">
+                {formatCurrency(properties.reduce((sum, prop) => sum + prop.current_value, 0))}
+              </div>
+            </th>
             <th className="px-6 py-3 text-right font-semibold text-gray-700">Net Equity</th>
             <th className="px-6 py-3 text-right font-semibold text-gray-700">Real Net Equity</th>
           </tr>

@@ -1,30 +1,46 @@
 import React, { useState, useEffect } from 'react'
-import { accountsAPI, investmentsAPI, propertiesAPI } from './api'
+import { accountsAPI, investmentsAPI, propertiesAPI, loansAPI, snapshotsAPI } from './api'
 import RefreshBar from './components/RefreshBar'
 import TotalValue from './components/TotalValue'
 import AccountsTable from './components/AccountsTable'
 import InvestmentsTable from './components/InvestmentsTable'
 import PropertiesTable from './components/PropertiesTable'
+import LoansTable from './components/LoansTable'
+import FxExposure from './components/FxExposure'
 
 export default function App() {
   const [accounts, setAccounts] = useState([])
   const [investments, setInvestments] = useState([])
   const [properties, setProperties] = useState([])
+  const [loans, setLoans] = useState([])
+  const [previousSnapshot, setPreviousSnapshot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const loadData = async () => {
     try {
       setLoading(true)
-      const [accountsRes, investmentsRes, propertiesRes] = await Promise.all([
+
+      // Auto-import any new loans from PDFs
+      try {
+        await fetch('/api/loans/import/import-all', { method: 'POST' })
+      } catch (err) {
+        console.log('Auto-import check completed (or no new loans)')
+      }
+
+      const [accountsRes, investmentsRes, propertiesRes, loansRes, snapshotsRes] = await Promise.all([
         accountsAPI.list(),
         investmentsAPI.list(),
         propertiesAPI.list(),
+        loansAPI.list(),
+        snapshotsAPI.latest(),
       ])
 
       setAccounts(accountsRes.data)
       setInvestments(investmentsRes.data)
       setProperties(propertiesRes.data)
+      setLoans(loansRes.data)
+      setPreviousSnapshot(snapshotsRes.data?.previous || null)
       setError(null)
     } catch (err) {
       setError(err.message)
@@ -80,7 +96,13 @@ export default function App() {
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         {/* Total Value Card */}
-        <TotalValue accounts={accounts} investments={investments} properties={properties} />
+        <TotalValue
+          accounts={accounts}
+          investments={investments}
+          properties={properties}
+          previousSnapshot={previousSnapshot}
+          onSnapshotSaved={loadData}
+        />
 
         {/* Cash Accounts */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -96,6 +118,17 @@ export default function App() {
             <h2 className="text-xl font-bold text-gray-900">Investments</h2>
           </div>
           <InvestmentsTable investments={investments} onUpdate={loadData} />
+        </div>
+
+        {/* FX Exposure */}
+        <FxExposure accounts={accounts} investments={investments} previousSnapshot={previousSnapshot} />
+
+        {/* Loans */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Loans</h2>
+          </div>
+          <LoansTable loans={loans} onUpdate={loadData} />
         </div>
 
         {/* Properties */}
