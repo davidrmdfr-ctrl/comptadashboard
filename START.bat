@@ -7,7 +7,7 @@ cd /d "%~dp0"
 cls
 echo.
 echo ======================================
-echo  Personal Finance Assistant
+echo  Compta Dashboard - Personal Finance
 echo ======================================
 echo.
 
@@ -18,23 +18,23 @@ taskkill /F /IM node.exe >nul 2>&1
 REM Activate venv
 call venv\Scripts\activate.bat
 
-echo Starting Backend...
+echo Starting Backend on http://127.0.0.1:8000...
 REM Start backend in background
-start /B "" python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
-
-timeout /t 2 /nobreak >nul
-
-echo Starting Frontend...
-REM Start frontend in background
-cd frontend
-start /B "" npm run dev
-cd ..
+start "Backend Server" python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 
 timeout /t 3 /nobreak >nul
 
+echo Starting Frontend on http://localhost:5173...
+REM Start frontend in background
+cd frontend
+start "Frontend Dev Server" npm run dev
+cd ..
+
+timeout /t 4 /nobreak >nul
+
 REM Open browser
 echo.
-echo Opening browser...
+echo Opening dashboard...
 start http://localhost:5173
 
 echo.
