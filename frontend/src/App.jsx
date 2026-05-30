@@ -21,13 +21,7 @@ export default function App() {
     try {
       setLoading(true)
 
-      // Auto-import any new loans from PDFs
-      try {
-        await fetch('/api/loans/import/import-all', { method: 'POST' })
-      } catch (err) {
-        console.log('Auto-import check completed (or no new loans)')
-      }
-
+      // Load main data immediately (don't wait for auto-import)
       const [accountsRes, investmentsRes, propertiesRes, loansRes, snapshotsRes] = await Promise.all([
         accountsAPI.list(),
         investmentsAPI.list(),
@@ -35,6 +29,11 @@ export default function App() {
         loansAPI.list(),
         snapshotsAPI.latest(),
       ])
+
+      // Auto-import runs in background (non-blocking)
+      fetch('/api/loans/import/import-all', { method: 'POST' }).catch(() => {
+        console.log('Auto-import completed')
+      })
 
       setAccounts(accountsRes.data)
       setInvestments(investmentsRes.data)
