@@ -1,53 +1,39 @@
-# Personal Finance Assistant
+# Compta Dashboard
 
-A secure, local-first web application for investment management, real estate portfolio tracking, tax planning, and financial forecasting. Replaces Compta.xlsx with an encrypted database backend.
-
-## Features
-
-- **Multi-currency accounts** — EUR, SGD, GBP, HKD, USD, JPY, AUD
-- **Investment portfolio** — Stocks, ETFs, bonds with live market prices
-- **Real estate management** — 5+ properties with amortization schedules and rental income tracking
-- **Tax planning** — Annual tax calculations and deductions
-- **Financial forecasting** — Multi-year projections
-- **Secure storage** — SQLite + SQLCipher encryption at rest
-- **Local-first** — Data stays on your machine, optional cloud backup
+Personal finance management — track accounts, investments, properties, and loans with live data.
 
 ## Quick Start
 
-### 1. Set up Python environment
+**Windows:** Double-click `START_COMPTA.bat`
 
-```bash
-# Create virtual environment
-python -m venv venv
-
-# Activate it
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+**PowerShell:**
+```powershell
+. .\launch_app.ps1
 ```
 
-### 2. Initialize database
+Dashboard opens at: http://localhost:5173
+
+## Features
+
+- 💰 Multi-currency accounts (EUR, SGD, GBP, USD, etc.)
+- 📈 Investment portfolio tracking
+- 🏠 Property & loan management  
+- 📊 Real-time FX exposure
+- 🔄 Auto-refresh with market data
+- 💾 Local SQLite database
+
+## API Docs
+
+Backend API: http://127.0.0.1:8000/docs
+
+## Setup (First Time)
 
 ```bash
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
 python init_db.py
 ```
-
-This will:
-- Create `.env` with a secure database password
-- Initialize the encrypted database
-- Import data from Compta.xlsx
-
-### 3. Run the backend
-
-```bash
-uvicorn backend.main:app --reload
-```
-
-The API will be available at `http://localhost:8000`
 
 View the interactive API docs at: `http://localhost:8000/docs`
 
