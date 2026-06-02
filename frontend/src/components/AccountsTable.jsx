@@ -59,7 +59,6 @@ export default function AccountsTable({ accounts, onUpdate }) {
       await accountsAPI.update(id, editData)
       setSavedAccounts({ ...savedAccounts, [id]: parseFloat(editData.amount) })
       setEditingId(null)
-      onUpdate()
     } catch (err) {
       alert(`Error: ${err.message}`)
     } finally {
