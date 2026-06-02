@@ -7,7 +7,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
   const [addingToBroker, setAddingToBroker] = useState(null)
   const [showAddBroker, setShowAddBroker] = useState(false)
   const [brokerName, setBrokerName] = useState('')
-  const [expandedBroker, setExpandedBroker] = useState(null)
+  const [expandedBrokers, setExpandedBrokers] = useState(new Set())
   const [formData, setFormData] = useState({
     symbol: '',
     name: '',
@@ -201,6 +201,16 @@ export default function InvestmentsTable({ investments, onUpdate }) {
     }
   }
 
+  const toggleExpandedBroker = (brokerId) => {
+    const newSet = new Set(expandedBrokers)
+    if (newSet.has(brokerId)) {
+      newSet.delete(brokerId)
+    } else {
+      newSet.add(brokerId)
+    }
+    setExpandedBrokers(newSet)
+  }
+
   const formatCurrency = (value, currency) => {
     return new Intl.NumberFormat('fr-FR', {
       style: 'currency',
@@ -246,7 +256,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                 </tr>
               ) : (
                 organized.brokers.map((broker) => {
-                  const isExpanded = expandedBroker === broker.id
+                  const isExpanded = expandedBrokers.has(broker.id)
                   const brokerTotal =
                     broker.eur_amount + broker.holdings.reduce((sum, inv) => sum + inv.eur_amount, 0)
 
@@ -255,7 +265,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                       {/* Broker row */}
                       <tr
                         className="hover:bg-gray-50 cursor-pointer bg-gray-100"
-                        onClick={() => setExpandedBroker(isExpanded ? null : broker.id)}
+                        onClick={() => toggleExpandedBroker(broker.id)}
                       >
                         <td className="px-6 py-4 font-semibold text-gray-900 flex items-center gap-2">
                           <span>{broker.holdings.length > 0 ? (isExpanded ? '▼' : '▶') : '  '}</span>
