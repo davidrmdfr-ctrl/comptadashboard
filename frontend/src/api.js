@@ -17,6 +17,7 @@ export const investmentsAPI = {
   list: () => api.get('/investments/'),
   get: (id) => api.get(`/investments/${id}`),
   create: (data) => api.post('/investments/', data),
+  update: (id, data) => api.patch(`/investments/${id}`, data),
   delete: (id) => api.delete(`/investments/${id}`),
 }
 

@@ -186,7 +186,23 @@ export default function AccountsTable({ accounts, onUpdate }) {
                             </button>
                           )}
                           {children.length === 0 && <span className="w-5"></span>}
-                          {parentAccount.account_name || '—'}
+                          {editingId === parentAccount.id ? (
+                            <input
+                              type="text"
+                              value={editData.account_name}
+                              onChange={(e) => setEditData({ ...editData, account_name: e.target.value })}
+                              onBlur={() => handleEditSave(parentAccount.id)}
+                              className="px-2 py-1 border border-gray-300 rounded"
+                              autoFocus
+                            />
+                          ) : (
+                            <span
+                              className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                              onClick={() => handleEditStart(parentAccount)}
+                            >
+                              {parentAccount.account_name || '—'}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center text-gray-600">—</td>
@@ -238,7 +254,25 @@ export default function AccountsTable({ accounts, onUpdate }) {
                     {isExpanded &&
                       children.map((child) => (
                         <tr key={child.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 pl-16 text-gray-700">{child.account_name}</td>
+                          <td className="px-6 py-4 pl-16 text-gray-700">
+                            {editingId === child.id ? (
+                              <input
+                                type="text"
+                                value={editData.account_name}
+                                onChange={(e) => setEditData({ ...editData, account_name: e.target.value })}
+                                onBlur={() => handleEditSave(child.id)}
+                                className="px-2 py-1 border border-gray-300 rounded"
+                                autoFocus
+                              />
+                            ) : (
+                              <span
+                                className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                                onClick={() => handleEditStart(child)}
+                              >
+                                {child.account_name}
+                              </span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 text-center font-medium">{child.currency}</td>
                           <td className="px-6 py-4 text-right">
                             {editingId === child.id ? (

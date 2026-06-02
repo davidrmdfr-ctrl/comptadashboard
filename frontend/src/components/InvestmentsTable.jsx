@@ -174,21 +174,27 @@ export default function InvestmentsTable({ investments, onUpdate }) {
     setEditingInvestmentId(investment.id)
     setEditingInvestmentField(field)
     setEditingInvestmentData({
-      eur_amount: savedInvestments[investment.id] !== undefined ? savedInvestments[investment.id] : investment.eur_amount,
+      eur_amount: investment.eur_amount,
+      quantity: investment.quantity,
+      cost_basis: investment.cost_basis,
+      name: investment.name,
     })
   }
 
   const handleEditInvestment = async (id) => {
     try {
       setSaving(true)
-      await fetch(`/api/investments/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ eur_amount: parseFloat(editingInvestmentData.eur_amount) }),
-      })
-      setSavedInvestments({ ...savedInvestments, [id]: parseFloat(editingInvestmentData.eur_amount) })
+      const updateData = {}
+      if (editingInvestmentField === 'eur_amount') updateData.eur_amount = parseFloat(editingInvestmentData.eur_amount)
+      if (editingInvestmentField === 'quantity') updateData.quantity = parseFloat(editingInvestmentData.quantity)
+      if (editingInvestmentField === 'cost_basis') updateData.cost_basis = parseFloat(editingInvestmentData.cost_basis)
+      if (editingInvestmentField === 'name') updateData.name = editingInvestmentData.name
+
+      await investmentsAPI.update(id, updateData)
+      setSavedInvestments({ ...savedInvestments, [id]: editingInvestmentData[editingInvestmentField] })
       setEditingInvestmentId(null)
       setEditingInvestmentField(null)
+      onUpdate()
     } catch (err) {
       alert(`Error: ${err.message}`)
     } finally {
@@ -324,15 +330,69 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                       {isExpanded &&
                         broker.holdings.map((inv) => (
                           <tr key={inv.id} className="bg-gray-50 hover:bg-gray-100">
-                            <td className="px-6 py-4 pl-12 text-gray-700">{inv.name || inv.symbol}</td>
-                            <td className="px-6 py-4 text-right">{inv.quantity.toFixed(2)}</td>
+                            <td className="px-6 py-4 pl-12 text-gray-700">
+                              {editingInvestmentId === inv.id && editingInvestmentField === 'name' ? (
+                                <input
+                                  type="text"
+                                  value={editingInvestmentData.name || inv.name}
+                                  onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, name: e.target.value })}
+                                  onBlur={() => handleEditInvestment(inv.id)}
+                                  className="px-2 py-1 border border-gray-300 rounded"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span
+                                  className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                                  onClick={() => handleFieldClick(inv, 'name')}
+                                >
+                                  {inv.name || inv.symbol}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {editingInvestmentId === inv.id && editingInvestmentField === 'quantity' ? (
+                                <input
+                                  type="number"
+                                  value={editingInvestmentData.quantity || inv.quantity}
+                                  onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, quantity: parseFloat(e.target.value) })}
+                                  onBlur={() => handleEditInvestment(inv.id)}
+                                  className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
+                                  step="0.01"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span
+                                  className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                                  onClick={() => handleFieldClick(inv, 'quantity')}
+                                >
+                                  {inv.quantity.toFixed(2)}
+                                </span>
+                              )}
+                            </td>
                             <td className="px-6 py-4 text-right text-sm">
                               {formatCurrency(inv.quantity > 0 ? inv.cost_basis / inv.quantity : 0, inv.currency)}
                               <br />
                               <span className="text-gray-500">{inv.currency}</span>
                             </td>
                             <td className="px-6 py-4 text-right">
-                              {formatCurrency(inv.cost_basis, 'EUR')}
+                              {editingInvestmentId === inv.id && editingInvestmentField === 'cost_basis' ? (
+                                <input
+                                  type="number"
+                                  value={editingInvestmentData.cost_basis || inv.cost_basis}
+                                  onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, cost_basis: parseFloat(e.target.value) })}
+                                  onBlur={() => handleEditInvestment(inv.id)}
+                                  className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
+                                  step="0.01"
+                                  autoFocus
+                                />
+                              ) : (
+                                <span
+                                  className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                                  onClick={() => handleFieldClick(inv, 'cost_basis')}
+                                >
+                                  {formatCurrency(inv.cost_basis, 'EUR')}
+                                </span>
+                              )}
                             </td>
                             <td className="px-6 py-4 text-right text-sm">
                               {formatCurrency(inv.current_price, inv.currency)}
@@ -682,7 +742,25 @@ export default function InvestmentsTable({ investments, onUpdate }) {
               ) : (
                 organized.privateInvs.map((inv) => (
                   <tr key={inv.id} className="hover:bg-gray-100">
-                    <td className="px-6 py-4 text-gray-700 font-medium">{inv.name || inv.symbol}</td>
+                    <td className="px-6 py-4 text-gray-700 font-medium">
+                      {editingInvestmentId === inv.id && editingInvestmentField === 'name' ? (
+                        <input
+                          type="text"
+                          value={editingInvestmentData.name || inv.name}
+                          onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, name: e.target.value })}
+                          onBlur={() => handleEditInvestment(inv.id)}
+                          className="px-2 py-1 border border-gray-300 rounded"
+                          autoFocus
+                        />
+                      ) : (
+                        <span
+                          className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                          onClick={() => handleFieldClick(inv, 'name')}
+                        >
+                          {inv.name || inv.symbol}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 text-gray-600 capitalize">{inv.investment_type}</td>
                     <td className="px-6 py-4 text-right">
                       {formatCurrency(inv.cost_basis, inv.currency)}
