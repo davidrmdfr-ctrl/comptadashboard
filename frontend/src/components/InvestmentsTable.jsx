@@ -212,12 +212,15 @@ export default function InvestmentsTable({ investments, onUpdate }) {
   }
 
   const formatCurrency = (value, currency) => {
-    return new Intl.NumberFormat('fr-FR', {
-      style: 'currency',
-      currency: currency,
+    const formatted = new Intl.NumberFormat('fr-FR', {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value)
+
+    if (currency === 'EUR') {
+      return `${formatted} €`
+    }
+    return `${formatted} ${currency}`
   }
 
   return (
