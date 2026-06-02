@@ -7,6 +7,8 @@
 Data/portfolio.db
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 
 # Source data (sensitive)
 Data/Compta.xlsx

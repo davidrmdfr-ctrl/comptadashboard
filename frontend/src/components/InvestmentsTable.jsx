@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { investmentsAPI } from '../api'
+import { investmentsAPI, marketAPI } from '../api'
 
 export default function InvestmentsTable({ investments, onUpdate }) {
   const [showAddForm, setShowAddForm] = useState(false)
@@ -23,9 +23,13 @@ export default function InvestmentsTable({ investments, onUpdate }) {
     eur_amount: 0,
   })
   const [saving, setSaving] = useState(false)
+  const [resolvingISIN, setResolvingISIN] = useState(false)
+  const [isinError, setIsinError] = useState(null)
+  const [lookingUp, setLookingUp] = useState(false)
   const [editingInvestmentId, setEditingInvestmentId] = useState(null)
   const [editingInvestmentField, setEditingInvestmentField] = useState(null)
   const [editingInvestmentData, setEditingInvestmentData] = useState({})
+  const [savedInvestments, setSavedInvestments] = useState({})
 
   // Organize investments: brokers + their holdings vs private
   const organized = useMemo(() => {
@@ -46,6 +50,33 @@ export default function InvestmentsTable({ investments, onUpdate }) {
 
     return { brokers: Object.values(brokers), privateInvs }
   }, [investments])
+
+  const handleLookupETF = async () => {
+    if (!formData.isin || formData.isin.trim() === '') return
+    if (!formData.currency) return
+
+    try {
+      setLookingUp(true)
+      setIsinError(null)
+      const res = await marketAPI.lookupETF(formData.isin, formData.currency)
+
+      if (res.data.success) {
+        setFormData({
+          ...formData,
+          symbol: res.data.ticker,
+          name: res.data.name,
+          current_price: res.data.price || 0,
+        })
+        setIsinError(null)
+      } else {
+        setIsinError(res.data.message)
+      }
+    } catch (err) {
+      setIsinError(`Error: ${err.message}`)
+    } finally {
+      setLookingUp(false)
+    }
+  }
 
   const handleAddBroker = async (e) => {
     e.preventDefault()
@@ -128,11 +159,22 @@ export default function InvestmentsTable({ investments, onUpdate }) {
     }
   }
 
+  const handleDeleteBroker = async (id) => {
+    if (window.confirm('Delete this broker?')) {
+      try {
+        await investmentsAPI.delete(id)
+        onUpdate()
+      } catch (err) {
+        alert(`Error: ${err.message}`)
+      }
+    }
+  }
+
   const handleFieldClick = (investment, field) => {
     setEditingInvestmentId(investment.id)
     setEditingInvestmentField(field)
     setEditingInvestmentData({
-      eur_amount: investment.eur_amount,
+      eur_amount: savedInvestments[investment.id] !== undefined ? savedInvestments[investment.id] : investment.eur_amount,
     })
   }
 
@@ -144,9 +186,9 @@ export default function InvestmentsTable({ investments, onUpdate }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ eur_amount: parseFloat(editingInvestmentData.eur_amount) }),
       })
+      setSavedInvestments({ ...savedInvestments, [id]: parseFloat(editingInvestmentData.eur_amount) })
       setEditingInvestmentId(null)
       setEditingInvestmentField(null)
-      onUpdate()
     } catch (err) {
       alert(`Error: ${err.message}`)
     } finally {
@@ -174,22 +216,26 @@ export default function InvestmentsTable({ investments, onUpdate }) {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-200 bg-blue-50">
-                <th className="px-6 py-3 text-left font-semibold text-gray-700">Broker / Symbol</th>
+                <th className="px-6 py-3 text-left font-semibold text-gray-700">Symbol</th>
                 <th className="px-6 py-3 text-right font-semibold text-gray-700">Quantity</th>
-                <th className="px-6 py-3 text-right font-semibold text-gray-700">Price / Currency</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-700">Initial Price</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-700">Initial Value</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-700">Current Price</th>
                 <th className="px-6 py-3 text-right font-semibold text-gray-700">
-                  EUR Value
+                  Current Value
                   <div className="text-sm font-bold text-blue-600">
                     {formatCurrency(investments.reduce((sum, inv) => sum + inv.eur_amount, 0), 'EUR')}
                   </div>
                 </th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-700">Change</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-700">% Change</th>
                 <th className="px-6 py-3 text-center font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {organized.brokers.length === 0 ? (
                 <tr>
-                  <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan="9" className="px-6 py-8 text-center text-gray-500">
                     No broker accounts yet
                   </td>
                 </tr>
@@ -213,9 +259,28 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4 text-right font-bold">
+                          {formatCurrency(broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0), 'EUR')}
+                        </td>
+                        <td className="px-6 py-4"></td>
+                        <td className="px-6 py-4 text-right font-bold">
                           {formatCurrency(brokerTotal, 'EUR')}
                         </td>
-                        <td className="px-6 py-4 text-center">
+                        <td className="px-6 py-4 text-right font-bold">
+                          {(() => {
+                            const totalInitial = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
+                            const change = brokerTotal - totalInitial
+                            return <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(change, 'EUR')}</span>
+                          })()}
+                        </td>
+                        <td className="px-6 py-4 text-right font-bold">
+                          {(() => {
+                            const totalInitial = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
+                            const change = brokerTotal - totalInitial
+                            const pctChange = totalInitial > 0 ? (change / totalInitial * 100).toFixed(2) : 0
+                            return <span className={pctChange >= 0 ? 'text-green-600' : 'text-red-600'}>{pctChange}%</span>
+                          })()}
+                        </td>
+                        <td className="px-6 py-4 text-center flex gap-1 justify-center">
                           <button
                             onClick={(e) => {
                               e.stopPropagation()
@@ -237,9 +302,20 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                               })
                               setShowAddForm(true)
                             }}
-                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700"
+                            className="p-1 text-blue-600 hover:bg-blue-100 rounded transition"
+                            title="Add investment"
                           >
-                            Add
+                            +
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDeleteBroker(broker.id)
+                            }}
+                            className="p-1 text-red-600 hover:bg-red-100 rounded transition"
+                            title="Delete broker"
+                          >
+                            🗑️
                           </button>
                         </td>
                       </tr>
@@ -248,8 +324,16 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                       {isExpanded &&
                         broker.holdings.map((inv) => (
                           <tr key={inv.id} className="bg-gray-50 hover:bg-gray-100">
-                            <td className="px-6 py-4 pl-12 text-gray-700">{inv.symbol}</td>
+                            <td className="px-6 py-4 pl-12 text-gray-700">{inv.name || inv.symbol}</td>
                             <td className="px-6 py-4 text-right">{inv.quantity.toFixed(2)}</td>
+                            <td className="px-6 py-4 text-right text-sm">
+                              {formatCurrency(inv.quantity > 0 ? inv.cost_basis / inv.quantity : 0, inv.currency)}
+                              <br />
+                              <span className="text-gray-500">{inv.currency}</span>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              {formatCurrency(inv.cost_basis, 'EUR')}
+                            </td>
                             <td className="px-6 py-4 text-right text-sm">
                               {formatCurrency(inv.current_price, inv.currency)}
                               <br />
@@ -257,6 +341,19 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                             </td>
                             <td className="px-6 py-4 text-right font-medium">
                               {formatCurrency(inv.eur_amount, 'EUR')}
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium">
+                              {(() => {
+                                const change = inv.eur_amount - inv.cost_basis
+                                return <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(change, 'EUR')}</span>
+                              })()}
+                            </td>
+                            <td className="px-6 py-4 text-right font-medium">
+                              {(() => {
+                                const change = inv.eur_amount - inv.cost_basis
+                                const pctChange = inv.cost_basis > 0 ? (change / inv.cost_basis * 100).toFixed(2) : 0
+                                return <span className={pctChange >= 0 ? 'text-green-600' : 'text-red-600'}>{pctChange}%</span>
+                              })()}
                             </td>
                             <td className="px-6 py-4 text-center">
                               <button
@@ -274,30 +371,15 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                 })
               )}
 
-              {/* Add button for Public */}
-              <tr className="hover:bg-blue-100 cursor-pointer bg-blue-50">
-                <td colSpan="5" className="px-6 py-4 text-center">
+              {/* Add button for Public - Add Broker */}
+              <tr className="hover:bg-blue-100 bg-blue-50">
+                <td colSpan="9" className="px-6 py-4 text-center">
                   <button
                     onClick={() => {
-                      setShowAddForm(true)
-                      setAddingType('public')
-                      setAddingToBroker(organized.brokers.length > 0 ? organized.brokers[0].id : null)
-                      setFormData({
-                        symbol: '',
-                        name: '',
-                        investment_type: 'stock',
-                        quantity: 0,
-                        cost_basis: 0,
-                        currency: 'USD',
-                        current_price: 0,
-                        parent_id: null,
-                        isin: '',
-                        pricePerUnit: 0,
-                        inputType: 'quantity',
-                        eur_amount: 0,
-                      })
+                      setShowAddBroker(true)
                     }}
                     className="text-3xl text-gray-400 hover:text-blue-600 transition w-full"
+                    title="Add broker"
                   >
                     +
                   </button>
@@ -388,12 +470,31 @@ export default function InvestmentsTable({ investments, onUpdate }) {
             {/* ISIN */}
             <input
               type="text"
-              placeholder="ISIN (e.g., IE00B4L5Y983)"
+              placeholder="ISIN (e.g., IE000I8KRLL9)"
               value={formData.isin}
-              onChange={(e) => setFormData({ ...formData, isin: e.target.value, symbol: e.target.value })}
+              onChange={(e) => {
+                setFormData({ ...formData, isin: e.target.value })
+              }}
+              onBlur={handleLookupETF}
               className="px-3 py-2 border border-gray-300 rounded"
-              required
             />
+
+            {/* Currency for lookup */}
+            <select
+              value={formData.currency}
+              onChange={(e) => {
+                setFormData({ ...formData, currency: e.target.value })
+              }}
+              onBlur={handleLookupETF}
+              className="px-3 py-2 border border-gray-300 rounded"
+            >
+              <option>EUR</option>
+              <option>GBP</option>
+              <option>CHF</option>
+              <option>USD</option>
+            </select>
+
+            {isinError && <p className="col-span-2 text-xs text-red-600">{isinError}</p>}
 
             {/* Fund Name */}
             <input
@@ -581,7 +682,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
               ) : (
                 organized.privateInvs.map((inv) => (
                   <tr key={inv.id} className="hover:bg-gray-100">
-                    <td className="px-6 py-4 text-gray-700 font-medium">{inv.symbol}</td>
+                    <td className="px-6 py-4 text-gray-700 font-medium">{inv.name || inv.symbol}</td>
                     <td className="px-6 py-4 text-gray-600 capitalize">{inv.investment_type}</td>
                     <td className="px-6 py-4 text-right">
                       {formatCurrency(inv.cost_basis, inv.currency)}
@@ -603,7 +704,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        formatCurrency(inv.eur_amount, 'EUR')
+                        formatCurrency(savedInvestments[inv.id] !== undefined ? savedInvestments[inv.id] : inv.eur_amount, 'EUR')
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">

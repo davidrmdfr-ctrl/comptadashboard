@@ -43,19 +43,20 @@ class MarketFetcher:
             return None
 
         try:
+            logger.info(f"Fetching price for {symbol}...")
             ticker = yf.Ticker(symbol)
             data = ticker.history(period="1d")
 
             if data.empty:
-                logger.warning(f"No data for {symbol}")
+                logger.warning(f"No data for {symbol} - ticker history is empty")
                 return None
 
             price = data["Close"].iloc[-1]
-            logger.info(f"Fetched {symbol}: {price} {currency}")
+            logger.info(f"✓ Fetched {symbol}: {price} {currency}")
             return float(price)
 
         except Exception as e:
-            logger.error(f"Error fetching {symbol}: {e}")
+            logger.error(f"✗ Error fetching {symbol}: {e}")
             return None
 
     @staticmethod
@@ -167,3 +168,49 @@ class MarketFetcher:
             else:
                 results[currency] = MarketFetcher.fetch_exchange_rate(currency, target)
         return results
+
+    @staticmethod
+    def resolve_isin_to_ticker(isin: str) -> Optional[str]:
+        """
+        Resolve ISIN to ticker by searching common exchanges.
+
+        Tries the ISIN directly first, then common exchange suffixes.
+
+        Args:
+            isin: ISIN code (e.g., "IE000I8KRLL9")
+
+        Returns:
+            Ticker symbol if found, None otherwise
+        """
+        if not yf:
+            logger.warning("yfinance not installed")
+            return None
+
+        # Try the ISIN directly first
+        try:
+            logger.info(f"Trying ISIN directly: {isin}")
+            ticker = yf.Ticker(isin)
+            data = ticker.history(period="1d")
+            if not data.empty:
+                logger.info(f"✓ Found {isin} directly")
+                return isin
+        except Exception as e:
+            logger.debug(f"Direct ISIN lookup failed: {e}")
+
+        # Try common exchange suffixes for European ETFs
+        exchanges = [".L", ".MI", ".PA", ".DE", ".SIX", ".VX"]
+        for suffix in exchanges:
+            try:
+                test_ticker = isin + suffix
+                logger.info(f"Trying {test_ticker}...")
+                ticker = yf.Ticker(test_ticker)
+                data = ticker.history(period="1d")
+                if not data.empty:
+                    logger.info(f"✓ Found {test_ticker}")
+                    return test_ticker
+            except Exception as e:
+                logger.debug(f"Failed {test_ticker}: {e}")
+                continue
+
+        logger.warning(f"Could not resolve ISIN {isin}")
+        return None

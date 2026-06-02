@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { accountsAPI } from '../api'
 
 export default function AccountsTable({ accounts, onUpdate }) {
@@ -7,12 +7,25 @@ export default function AccountsTable({ accounts, onUpdate }) {
   const [saving, setSaving] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
   const [expandedParents, setExpandedParents] = useState(new Set())
+  const [savedAccounts, setSavedAccounts] = useState({})
+  const expandedParentsRef = useRef(new Set())
   const [formData, setFormData] = useState({
     account_name: '',
     currency: 'EUR',
     amount: 0,
     parent_id: null,
   })
+
+
+  // Preserve expanded state across data reloads
+  useEffect(() => {
+    expandedParentsRef.current = expandedParents
+  }, [expandedParents])
+
+  // Restore expanded state when accounts data changes
+  useEffect(() => {
+    setExpandedParents(new Set(expandedParentsRef.current))
+  }, [accounts])
 
   const organized = useMemo(() => {
     const parentAccounts = {}
@@ -35,7 +48,7 @@ export default function AccountsTable({ accounts, onUpdate }) {
   const handleEditStart = (account) => {
     setEditingId(account.id)
     setEditData({
-      amount: account.amount,
+      amount: savedAccounts[account.id] !== undefined ? savedAccounts[account.id] : account.amount,
       account_name: account.account_name,
     })
   }
@@ -44,7 +57,9 @@ export default function AccountsTable({ accounts, onUpdate }) {
     try {
       setSaving(true)
       await accountsAPI.update(id, editData)
+      setSavedAccounts({ ...savedAccounts, [id]: parseFloat(editData.amount) })
       setEditingId(null)
+      // Refresh exchange rates for all accounts (especially non-EUR)
       onUpdate()
     } catch (err) {
       alert(`Error: ${err.message}`)
@@ -175,7 +190,28 @@ export default function AccountsTable({ accounts, onUpdate }) {
                         </div>
                       </td>
                       <td className="px-6 py-4 text-center text-gray-600">—</td>
-                      <td className="px-6 py-4 text-right text-gray-600">—</td>
+                      <td className="px-6 py-4 text-right">
+                        {children.length > 0 ? (
+                          <span className="text-gray-600">—</span>
+                        ) : editingId === parentAccount.id ? (
+                          <input
+                            type="number"
+                            value={editData.amount}
+                            onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
+                            onBlur={() => handleEditSave(parentAccount.id)}
+                            className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
+                            step="0.01"
+                            autoFocus
+                          />
+                        ) : (
+                          <span
+                            className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
+                            onClick={() => handleEditStart(parentAccount)}
+                          >
+                            {(savedAccounts[parentAccount.id] !== undefined ? savedAccounts[parentAccount.id] : parentAccount.amount).toFixed(2)}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-6 py-4 text-right font-medium">
                         {formatCurrency(
                           [parentAccount, ...children].reduce((sum, acc) => sum + acc.eur_amount, 0)
@@ -210,15 +246,17 @@ export default function AccountsTable({ accounts, onUpdate }) {
                                 type="number"
                                 value={editData.amount}
                                 onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
+                                onBlur={() => handleEditSave(child.id)}
                                 className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
                                 step="0.01"
+                                autoFocus
                               />
                             ) : (
                               <span
                                 className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
                                 onClick={() => handleEditStart(child)}
                               >
-                                {child.amount.toFixed(2)}
+                                {(savedAccounts[child.id] !== undefined ? savedAccounts[child.id] : child.amount).toFixed(2)}
                               </span>
                             )}
                           </td>
@@ -262,7 +300,7 @@ export default function AccountsTable({ accounts, onUpdate }) {
               {accounts.length > 0 && (
                 <tr className="bg-blue-50 font-semibold hover:bg-blue-100">
                   <td className="px-6 py-4">Total</td>
-                  <td colSpan="3"></td>
+                  <td colSpan="2"></td>
                   <td className="px-6 py-4 text-right">
                     {formatCurrency(accounts.reduce((sum, acc) => sum + acc.eur_amount, 0))}
                   </td>

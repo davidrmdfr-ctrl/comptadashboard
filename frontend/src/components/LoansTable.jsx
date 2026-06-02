@@ -6,6 +6,7 @@ export default function LoansTable({ loans, onUpdate }) {
   const [editData, setEditData] = useState({})
   const [saving, setSaving] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [savedLoans, setSavedLoans] = useState({})
   const [formData, setFormData] = useState({
     name: '',
     loan_type: 'mortgage',
@@ -23,10 +24,11 @@ export default function LoansTable({ loans, onUpdate }) {
 
   const handleEditStart = (loan) => {
     setEditingId(loan.id)
+    const saved = savedLoans[loan.id]
     setEditData({
-      principal_left: loan.principal_left,
-      next_payment_amount: loan.next_payment_amount,
-      next_payment_date: loan.next_payment_date,
+      principal_left: saved?.principal_left !== undefined ? saved.principal_left : loan.principal_left,
+      next_payment_amount: saved?.next_payment_amount !== undefined ? saved.next_payment_amount : loan.next_payment_amount,
+      next_payment_date: saved?.next_payment_date !== undefined ? saved.next_payment_date : loan.next_payment_date,
       notes: loan.notes || '',
     })
   }
@@ -35,8 +37,12 @@ export default function LoansTable({ loans, onUpdate }) {
     try {
       setSaving(true)
       await loansAPI.update(id, editData)
+      setSavedLoans({ ...savedLoans, [id]: {
+        principal_left: parseFloat(editData.principal_left),
+        next_payment_amount: parseFloat(editData.next_payment_amount),
+        next_payment_date: editData.next_payment_date,
+      }})
       setEditingId(null)
-      onUpdate()
     } catch (err) {
       alert(`Error: ${err.message}`)
     } finally {
@@ -158,13 +164,15 @@ export default function LoansTable({ loans, onUpdate }) {
                         type="number"
                         value={editData.principal_left}
                         onChange={(e) => setEditData({ ...editData, principal_left: e.target.value })}
+                        onBlur={() => handleEditSave(loan.id)}
                         className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
                         step="0.01"
+                        autoFocus
                       />
                     ) : (
                       <span className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded"
                         onClick={() => handleEditStart(loan)}>
-                        {formatCurrency(loan.principal_left)}
+                        {formatCurrency(savedLoans[loan.id]?.principal_left !== undefined ? savedLoans[loan.id].principal_left : loan.principal_left)}
                       </span>
                     )}
                   </td>
@@ -174,11 +182,12 @@ export default function LoansTable({ loans, onUpdate }) {
                         type="number"
                         value={editData.next_payment_amount}
                         onChange={(e) => setEditData({ ...editData, next_payment_amount: e.target.value })}
+                        onBlur={() => handleEditSave(loan.id)}
                         className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
                         step="0.01"
                       />
                     ) : (
-                      <span className="text-gray-700">{formatCurrency(loan.next_payment_amount)}</span>
+                      <span className="text-gray-700">{formatCurrency(savedLoans[loan.id]?.next_payment_amount !== undefined ? savedLoans[loan.id].next_payment_amount : loan.next_payment_amount)}</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
@@ -187,10 +196,11 @@ export default function LoansTable({ loans, onUpdate }) {
                         type="date"
                         value={editData.next_payment_date}
                         onChange={(e) => setEditData({ ...editData, next_payment_date: e.target.value })}
+                        onBlur={() => handleEditSave(loan.id)}
                         className="px-2 py-1 border border-gray-300 rounded text-sm"
                       />
                     ) : (
-                      <span className="text-gray-700">{formatDate(loan.next_payment_date)}</span>
+                      <span className="text-gray-700">{formatDate(savedLoans[loan.id]?.next_payment_date !== undefined ? savedLoans[loan.id].next_payment_date : loan.next_payment_date)}</span>
                     )}
                   </td>
                   <td className="px-6 py-4 text-center">

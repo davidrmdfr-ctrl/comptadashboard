@@ -1,164 +1,141 @@
-# Compta Dashboard
+# Personal Finance Assistant
 
-Personal finance management — track accounts, investments, properties, and loans with live data.
+A secure, private web application for managing your financial portfolio. Replaces the Excel spreadsheet with a modern app to track cash accounts, investments, real estate properties, and forecasting.
+
+## What It Does
+
+- **Cash Accounts** — Track money in different currencies (EUR, SGD, GBP, USD, HKD, JPY, AUD)
+- **Investments** — Monitor stocks, ETFs with live market prices
+- **Real Estate** — Manage properties (Roses, Wagner, Parmentier, Boulets, Larmor Plage) with amortization schedules
+- **Asset Tracking** — Record your total portfolio value monthly to see growth trends
+- **Tax Planning** — Track gains, losses, and tax obligations
+- **Forecasting** — Project your wealth over multiple years
+
+---
 
 ## Quick Start
 
-**Windows:** Double-click `START_COMPTA.bat`
-
-**PowerShell:**
-```powershell
-. .\launch_app.ps1
-```
-
-Dashboard opens at: http://localhost:5173
-
-## Features
-
-- 💰 Multi-currency accounts (EUR, SGD, GBP, USD, etc.)
-- 📈 Investment portfolio tracking
-- 🏠 Property & loan management  
-- 📊 Real-time FX exposure
-- 🔄 Auto-refresh with market data
-- 💾 Local SQLite database
-
-## API Docs
-
-Backend API: http://127.0.0.1:8000/docs
-
-## Setup (First Time)
+### 1. First Time Setup
 
 ```bash
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
+# Activate Python environment
+cd "Personal Assistant\compta"
+.\venv\Scripts\Activate.ps1
+
+# Copy environment file
+copy .env.example .env
+
+# Edit .env with database password (ask Claude if unsure)
+notepad .env
+
+# Create the database
 python init_db.py
 ```
 
-View the interactive API docs at: `http://localhost:8000/docs`
+### 2. Run the Application
 
-### 4. (Optional) Run the frontend
+Open **two terminal windows** and run these commands:
 
+**Terminal 1 - Backend Server:**
 ```bash
-cd frontend
-npm install
+# Make sure you're in "Personal Assistant\compta" directory
+# Make sure venv is activated
+uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+**Terminal 2 - Frontend:**
+```bash
+cd "Personal Assistant\compta\frontend"
+npm install  # (first time only)
 npm start
 ```
 
-The web interface will be available at `http://localhost:3000`
+Then open your browser: **http://localhost:3000**
 
-## Project Structure
+---
+
+## How to Use
+
+### Adding a Cash Account
+1. Go to **Accounts** page
+2. Click **Add Account**
+3. Enter currency and amount
+4. Click Save
+
+### Recording Monthly Portfolio Value
+1. Go to **Dashboard**
+2. Click **Record Snapshot**
+3. Enter today's date and total portfolio value
+4. Click Save (this tracks trends)
+
+### Viewing Investment Prices
+1. Go to **Investments** page
+2. Click **Refresh Prices** to update from market
+3. Current prices shown for each stock/ETF
+
+### Property Details
+1. Go to **Properties** page
+2. Click on property name
+3. View amortization schedule and rental income
+
+---
+
+## Important Rules
+
+✅ **Your data is encrypted** — Stored securely on your computer
+✅ **Never share `.env` file** — Contains database password
+✅ **Data/ folder is private** — Never goes to GitHub
+✅ **Keep snapshots monthly** — Record your total portfolio value each month
+❌ **Don't move `Data/portfolio.db`** — Must stay in Data folder
+
+---
+
+## File Structure
 
 ```
-personal-assistant/
-├── backend/                    # FastAPI backend
-│   ├── db/models.py          # Database models
-│   ├── main.py               # API entry point
-│   ├── config.py             # Settings
-│   └── migrations/           # Data import scripts
-├── frontend/                 # React web UI (coming soon)
-├── Data/
-│   ├── portfolio.db          # Encrypted database (auto-created)
-│   └── Compta.xlsx           # Original spreadsheet
-├── init_db.py               # Database initialization script
-├── CLAUDE.md               # Development guide
-└── README.md               # This file
+├── backend/           # Python API (FastAPI)
+├── frontend/          # Web interface (React)
+├── Data/             # Your encrypted financial data
+│   ├── portfolio.db  # Database (encrypted)
+│   └── Compta.xlsx   # Original Excel file
+├── .env              # Passwords (never commit)
+└── init_db.py        # Setup script
 ```
 
-## Data Security
-
-- **Encryption at rest**: SQLite + SQLCipher (AES-256)
-- **Password protection**: Stored in `.env` (never committed)
-- **Local-first**: Data on your machine by default
-- **No sharing**: Data cannot be shared or moved
-- **Immutable path**: Database at `./Data/portfolio.db`
-
-## Development
-
-See [CLAUDE.md](CLAUDE.md) for detailed architecture, database schema, and development guidelines.
-
-### Running tests
-
-```bash
-pytest backend/tests -v
-```
-
-### Database operations
-
-```bash
-# Initialize (first time)
-python init_db.py
-
-# Manual import (if needed)
-python -m backend.migrations.import_compta
-
-# View database (using sqlite3)
-sqlite3 Data/portfolio.db
-```
-
-## API Endpoints (Coming Soon)
-
-### Accounts
-- `GET /api/accounts/` — List cash accounts
-- `POST /api/accounts/` — Create account
-- `GET /api/accounts/{id}` — Get account details
-
-### Investments
-- `GET /api/investments/` — List investments
-- `POST /api/investments/` — Add investment
-- `GET /api/investments/{id}` — Get investment details
-
-### Properties
-- `GET /api/properties/` — List properties
-- `GET /api/properties/{id}` — Get property with amortization
-- `POST /api/properties/{id}/snapshots` — Record monthly value
-
-### Market Data
-- `POST /api/market/refresh` — Update prices from external sources
-
-### Snapshots
-- `POST /api/snapshots/` — Record monthly total asset value
-- `GET /api/snapshots/` — Get snapshot history
-
-### Tax
-- `GET /api/tax/{year}` — Get tax data for year
-- `POST /api/tax/{year}` — Update tax data
+---
 
 ## Troubleshooting
 
-### "Module not found" errors
-Make sure the virtual environment is activated and dependencies are installed:
-```bash
-pip install -r requirements.txt
-```
+### "Port 8000 or 3000 already in use"
+Close other applications using these ports, or change them in `.env`
 
-### Database errors
-Delete `Data/portfolio.db` and run `python init_db.py` again:
-```bash
-rm Data/portfolio.db
-python init_db.py
-```
+### Database won't create
+- Check `.env` file exists
+- Make sure you have write permission to Data folder
+- Try deleting `Data/portfolio.db` and run `python init_db.py` again
 
-### Import failed
-Check that Compta.xlsx is in the `Data/` folder and run:
-```bash
-python init_db.py
-```
+### Frontend won't load
+- Check backend is running (Terminal 1)
+- Open browser console (F12 → Console tab) to see errors
+- Restart both servers
 
-## Next Steps
+### Data looks wrong
+- Import from Compta.xlsx first (ask Claude)
+- Check latest snapshot date is correct
 
-1. ✓ Set up project structure
-2. ✓ Create database schema
-3. ✓ Import Compta.xlsx data
-4. Build API endpoints (accounts, investments, properties)
-5. Build frontend dashboard
-6. Add real-time market data updates
-7. Add forecasting features
+---
 
-## License
+## Need Help?
 
-Private personal finance application. Do not share.
+- **Setup questions** → Check `.claude/init.md`
+- **Technical details** → See `CLAUDE.md`
+- **Ask Claude** → For features, fixes, or how to use
 
-## Support
+---
 
-For development questions, see [CLAUDE.md](CLAUDE.md)
+## Technologies
+
+- **Backend**: Python + FastAPI (modern, fast API)
+- **Database**: SQLite + encryption (secure, no setup)
+- **Frontend**: React (interactive web interface)
+- **Market Data**: yfinance (free stock prices)

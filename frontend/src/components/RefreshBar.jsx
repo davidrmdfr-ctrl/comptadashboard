@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { marketAPI, loansAPI } from '../api'
 
-export default function RefreshBar({ accounts, onRefreshComplete }) {
+export default function RefreshBar({ accounts, investments, onRefreshComplete }) {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
 
@@ -23,11 +23,16 @@ export default function RefreshBar({ accounts, onRefreshComplete }) {
         console.error('FX refresh error:', err)
       }
 
-      // Refresh investment prices
+      // Refresh investment prices (only actual securities, not brokers)
       try {
-        const symbols = ['AAPL', 'MSFT', 'GOOGL']
-        const pricesRes = await marketAPI.refreshPrices(symbols, 'stock')
-        results.pricesFetched = pricesRes.data?.prices_fetched || 0
+        const symbols = investments && investments.length > 0
+          ? investments.filter((inv) => !inv.is_broker).map((inv) => inv.symbol)
+          : []
+        console.log('Symbols to refresh:', symbols)
+        if (symbols.length > 0) {
+          const pricesRes = await marketAPI.refreshPrices(symbols, 'stock')
+          results.pricesFetched = pricesRes.data?.prices_fetched || 0
+        }
       } catch (err) {
         console.error('Price refresh error:', err)
       }

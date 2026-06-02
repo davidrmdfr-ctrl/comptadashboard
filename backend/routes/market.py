@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.db import MarketData, CashAccount
+from backend.db import MarketData, CashAccount, Investment
 from backend.models.market import (
     PriceRefreshRequest,
     PriceRefreshResponse,
@@ -43,21 +43,33 @@ async def refresh_prices(
     }
     ```
     """
-    logger.info(f"Refreshing prices for {request.symbols}")
+    logger.info(f"Refreshing prices for {len(request.symbols)} symbols: {request.symbols}")
 
     prices_fetched = 0
     prices_stored = 0
+    investments_updated = 0
     results = {}
+
+    if not request.symbols:
+        logger.warning("No symbols provided for refresh")
+        return PriceRefreshResponse(
+            success=False,
+            message="No symbols to refresh",
+            prices_fetched=0,
+            prices_stored=0,
+            data={},
+        )
 
     # Fetch prices
     if request.refresh_type in ("stock", "all"):
         for symbol in request.symbols:
+            logger.info(f"Processing symbol: {symbol}")
             price = MarketFetcher.fetch_stock_price(symbol)
             if price is not None:
                 prices_fetched += 1
                 results[symbol] = price
 
-                # Store in database
+                # Store in MarketData table
                 market_data = MarketData(
                     symbol=symbol,
                     price=price,
@@ -68,6 +80,16 @@ async def refresh_prices(
                 db.add(market_data)
                 prices_stored += 1
 
+                # Update Investment table with new price
+                try:
+                    investments = db.query(Investment).filter(Investment.symbol == symbol).all()
+                    for inv in investments:
+                        inv.current_price = price
+                        inv.eur_amount = inv.quantity * price  # Recalculate EUR value
+                        investments_updated += 1
+                except Exception as e:
+                    logger.error(f"Error updating investment {symbol}: {e}")
+
     try:
         db.commit()
     except Exception as e:
@@ -75,11 +97,11 @@ async def refresh_prices(
         logger.error(f"Error storing prices: {e}")
         raise HTTPException(status_code=500, detail=f"Error storing prices: {e}")
 
-    message = f"Fetched {prices_fetched} prices, stored {prices_stored}"
+    message = f"Fetched {prices_fetched} prices, stored {prices_stored}, updated {investments_updated} investments"
     logger.info(message)
 
     return PriceRefreshResponse(
-        success=prices_stored > 0,
+        success=prices_stored > 0 or investments_updated > 0,
         message=message,
         prices_fetched=prices_fetched,
         prices_stored=prices_stored,
@@ -230,4 +252,66 @@ async def list_market_data(
             }
             for d in data
         ],
+    }
+
+
+@router.get("/lookup-etf/{isin}/{currency}")
+async def lookup_etf(isin: str, currency: str):
+    """
+    Look up ETF by ISIN and currency.
+    Returns ticker symbol and fund name for the correct exchange/currency.
+
+    Example: GET /api/market/lookup-etf/IE000I8KRLL9/EUR
+    """
+    logger.info(f"Looking up ISIN {isin} in {currency}")
+
+    # Map ISIN + currency to ticker + name
+    etf_db = {
+        # IB (Interactive Brokers)
+        ("IE000I8KRLL9", "EUR"): ("SEMI.AS", "iShares MSCI Global Semiconductors UCITS ETF"),
+        ("IE000I8KRLL9", "GBP"): ("SEMI.L", "iShares MSCI Global Semiconductors UCITS ETF"),
+        ("IE000I8KRLL9", "CHF"): ("SEMI.SW", "iShares MSCI Global Semiconductors UCITS ETF"),
+        ("GSD.SI", "SGD"): ("GSD.SI", "SPDR Gold Shares"),
+
+        # LCL
+        ("IE0004766675", "EUR"): ("IE0004766675", "Comgest Growth Europe Acc"),
+        ("IE00B1Z6D669", "EUR"): ("IE00B1Z6D669", "PIMCO Diversified Income Fund E EUR Hedged"),
+        ("LU1261432659", "EUR"): ("LU1261432659", "Fidelity Funds - World Fund A-Acc-EUR"),
+        ("LU0292585626", "EUR"): ("LU0292585626", "AXA IM US Short Duration High Yield"),
+
+        # Deferred
+        ("ANZ.AX", "AUD"): ("ANZ.AX", "Australia and New Zealand Banking Group"),
+
+        # Other existing
+        ("IE00B4L5Y983", "EUR"): ("VGUV.AS", "Vanguard S&P 500 UCITS ETF"),
+        ("IE00B4L5Y983", "GBP"): ("VGUV.L", "Vanguard S&P 500 UCITS ETF"),
+        ("IE00BFXVGX16", "EUR"): ("VEUR.AS", "Vanguard FTSE Developed Europe ex-UK UCITS ETF"),
+        ("IE00BFXVGX16", "GBP"): ("VEUR.L", "Vanguard FTSE Developed Europe ex-UK UCITS ETF"),
+        ("IE00B5BMR087", "EUR"): ("VWRL.AS", "Vanguard FTSE Developed World UCITS ETF"),
+        ("IE00B5BMR087", "GBP"): ("VWRL.L", "Vanguard FTSE Developed World UCITS ETF"),
+    }
+
+    key = (isin, currency)
+    if key in etf_db:
+        ticker, name = etf_db[key]
+        logger.info(f"✓ Found {ticker}: {name}")
+
+        # Fetch current price
+        price = MarketFetcher.fetch_stock_price(ticker, currency)
+
+        return {
+            "success": True,
+            "isin": isin,
+            "currency": currency,
+            "ticker": ticker,
+            "name": name,
+            "price": price,
+        }
+
+    logger.warning(f"ETF not found: {isin} in {currency}")
+    return {
+        "success": False,
+        "isin": isin,
+        "currency": currency,
+        "message": f"No mapping for {isin} in {currency}. Add to database or check ISIN.",
     }

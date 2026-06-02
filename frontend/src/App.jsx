@@ -87,7 +87,7 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex justify-between items-center">
             <h1 className="text-3xl font-bold text-gray-900">Personal Finance Dashboard</h1>
-            <RefreshBar accounts={accounts} onRefreshComplete={handleRefreshComplete} />
+            <RefreshBar accounts={accounts} investments={investments} onRefreshComplete={handleRefreshComplete} />
           </div>
         </div>
       </div>

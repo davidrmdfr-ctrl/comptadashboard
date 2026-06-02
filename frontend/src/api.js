@@ -45,6 +45,7 @@ export const marketAPI = {
       refresh_type: refreshType,
     }),
   getLatestPrice: (symbol) => api.get(`/market/latest-price/${symbol}`),
+  lookupETF: (isin, currency) => api.get(`/market/lookup-etf/${isin}/${currency}`),
 }
 
 export const snapshotsAPI = {
