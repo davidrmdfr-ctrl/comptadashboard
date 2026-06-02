@@ -194,6 +194,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
       setSavedInvestments({ ...savedInvestments, [id]: editingInvestmentData[editingInvestmentField] })
       setEditingInvestmentId(null)
       setEditingInvestmentField(null)
+      onUpdate()
     } catch (err) {
       alert(`Error: ${err.message}`)
     } finally {
