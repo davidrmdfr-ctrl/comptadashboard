@@ -337,6 +337,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   value={editingInvestmentData.name || inv.name}
                                   onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, name: e.target.value })}
                                   onBlur={() => handleEditInvestment(inv.id)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditInvestment(inv.id) }}
                                   className="px-2 py-1 border border-gray-300 rounded"
                                   autoFocus
                                 />
@@ -356,6 +357,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   value={editingInvestmentData.quantity || inv.quantity}
                                   onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, quantity: parseFloat(e.target.value) })}
                                   onBlur={() => handleEditInvestment(inv.id)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditInvestment(inv.id) }}
                                   className="w-20 px-2 py-1 border border-gray-300 rounded text-right"
                                   step="0.01"
                                   autoFocus
@@ -381,6 +383,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   value={editingInvestmentData.cost_basis || inv.cost_basis}
                                   onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, cost_basis: parseFloat(e.target.value) })}
                                   onBlur={() => handleEditInvestment(inv.id)}
+                                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditInvestment(inv.id) }}
                                   className="w-24 px-2 py-1 border border-gray-300 rounded text-right"
                                   step="0.01"
                                   autoFocus
@@ -749,6 +752,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                           value={editingInvestmentData.name || inv.name}
                           onChange={(e) => setEditingInvestmentData({ ...editingInvestmentData, name: e.target.value })}
                           onBlur={() => handleEditInvestment(inv.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditInvestment(inv.id) }}
                           className="px-2 py-1 border border-gray-300 rounded"
                           autoFocus
                         />
@@ -776,7 +780,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                           autoFocus
                           onBlur={() => handleEditInvestment(inv.id)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') handleEditInvestment(inv.id)
+                            if (e.key === 'Enter' || e.key === 'Tab') handleEditInvestment(inv.id)
                             if (e.key === 'Escape') setEditingInvestmentId(null)
                           }}
                           onClick={(e) => e.stopPropagation()}

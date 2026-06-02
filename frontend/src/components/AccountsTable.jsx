@@ -191,6 +191,7 @@ export default function AccountsTable({ accounts, onUpdate }) {
                               value={editData.account_name}
                               onChange={(e) => setEditData({ ...editData, account_name: e.target.value })}
                               onBlur={() => handleEditSave(parentAccount.id)}
+                              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditSave(parentAccount.id) }}
                               className="px-2 py-1 border border-gray-300 rounded"
                               autoFocus
                             />
@@ -214,6 +215,7 @@ export default function AccountsTable({ accounts, onUpdate }) {
                             value={editData.amount}
                             onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
                             onBlur={() => handleEditSave(parentAccount.id)}
+                            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditSave(parentAccount.id) }}
                             className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
                             step="0.01"
                             autoFocus
@@ -260,6 +262,7 @@ export default function AccountsTable({ accounts, onUpdate }) {
                                 value={editData.account_name}
                                 onChange={(e) => setEditData({ ...editData, account_name: e.target.value })}
                                 onBlur={() => handleEditSave(child.id)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditSave(child.id) }}
                                 className="px-2 py-1 border border-gray-300 rounded"
                                 autoFocus
                               />
@@ -280,6 +283,7 @@ export default function AccountsTable({ accounts, onUpdate }) {
                                 value={editData.amount}
                                 onChange={(e) => setEditData({ ...editData, amount: e.target.value })}
                                 onBlur={() => handleEditSave(child.id)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Tab') handleEditSave(child.id) }}
                                 className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
                                 step="0.01"
                                 autoFocus
