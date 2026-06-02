@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useRef } from 'react'
 import { investmentsAPI, marketAPI } from '../api'
 
 export default function InvestmentsTable({ investments, onUpdate }) {
@@ -30,6 +30,17 @@ export default function InvestmentsTable({ investments, onUpdate }) {
   const [editingInvestmentField, setEditingInvestmentField] = useState(null)
   const [editingInvestmentData, setEditingInvestmentData] = useState({})
   const [savedInvestments, setSavedInvestments] = useState({})
+  const expandedBrokersRef = useRef(new Set())
+
+  // Preserve expanded state across data reloads
+  useEffect(() => {
+    expandedBrokersRef.current = expandedBrokers
+  }, [expandedBrokers])
+
+  // Restore expanded state when investments data changes
+  useEffect(() => {
+    setExpandedBrokers(new Set(expandedBrokersRef.current))
+  }, [investments])
 
   // Organize investments: brokers + their holdings vs private
   const organized = useMemo(() => {
@@ -191,7 +202,10 @@ export default function InvestmentsTable({ investments, onUpdate }) {
       if (editingInvestmentField === 'name') updateData.name = editingInvestmentData.name
 
       await investmentsAPI.update(id, updateData)
-      setSavedInvestments({ ...savedInvestments, [id]: editingInvestmentData[editingInvestmentField] })
+      setSavedInvestments({
+        ...savedInvestments,
+        [id]: { ...savedInvestments[id], ...updateData }
+      })
       setEditingInvestmentId(null)
       setEditingInvestmentField(null)
     } catch (err) {
@@ -373,7 +387,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
                                   onClick={() => handleFieldClick(inv, 'name')}
                                 >
-                                  {inv.name || inv.symbol}
+                                  {(savedInvestments[inv.id]?.name) || inv.name || inv.symbol}
                                 </span>
                               )}
                             </td>
@@ -394,14 +408,12 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
                                   onClick={() => handleFieldClick(inv, 'quantity')}
                                 >
-                                  {inv.quantity.toFixed(2)}
+                                  {((savedInvestments[inv.id]?.quantity) ?? inv.quantity).toFixed(2)}
                                 </span>
                               )}
                             </td>
                             <td className="px-6 py-4 text-right text-sm">
                               {formatCurrency(inv.quantity > 0 ? inv.cost_basis / inv.quantity : 0, inv.currency)}
-                              <br />
-                              <span className="text-gray-500">{inv.currency}</span>
                             </td>
                             <td className="px-6 py-4 text-right">
                               {editingInvestmentId === inv.id && editingInvestmentField === 'cost_basis' ? (
@@ -420,21 +432,15 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
                                   onClick={() => handleFieldClick(inv, 'cost_basis')}
                                 >
-                                  {formatCurrency(inv.cost_basis, inv.currency)}
-                                  <br />
-                                  <span className="text-xs text-gray-500">{inv.currency}</span>
+                                  {formatCurrency((savedInvestments[inv.id]?.cost_basis) ?? inv.cost_basis, inv.currency)}
                                 </span>
                               )}
                             </td>
                             <td className="px-6 py-4 text-right text-sm">
                               {formatCurrency(inv.current_price, inv.currency)}
-                              <br />
-                              <span className="text-gray-500">{inv.currency}</span>
                             </td>
                             <td className="px-6 py-4 text-right text-sm">
-                              {formatCurrency(inv.current_price * inv.quantity, inv.currency)}
-                              <br />
-                              <span className="text-gray-500 font-medium">{formatCurrency(inv.eur_amount, 'EUR')}</span>
+                              {formatCurrency(inv.current_price * inv.quantity, inv.currency)} / {formatCurrency(inv.eur_amount, 'EUR')}
                             </td>
                             <td className="px-6 py-4 text-right text-sm">
                               {(() => {
@@ -443,15 +449,9 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                 const currentExchangeRate = inv.eur_amount / currentValueLocal
                                 const changeEur = changeLocal * currentExchangeRate
                                 return (
-                                  <>
-                                    <span className={changeLocal >= 0 ? 'text-green-600' : 'text-red-600'}>
-                                      {formatCurrency(changeLocal, inv.currency)}
-                                    </span>
-                                    <br />
-                                    <span className={`text-gray-500 font-medium ${changeEur >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                      {formatCurrency(changeEur, 'EUR')}
-                                    </span>
-                                  </>
+                                  <span className={changeLocal >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                    {formatCurrency(changeLocal, inv.currency)} / {formatCurrency(changeEur, 'EUR')}
+                                  </span>
                                 )
                               })()}
                             </td>
@@ -804,7 +804,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                           className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
                           onClick={() => handleFieldClick(inv, 'name')}
                         >
-                          {inv.name || inv.symbol}
+                          {(savedInvestments[inv.id]?.name) || inv.name || inv.symbol}
                         </span>
                       )}
                     </td>
@@ -829,7 +829,7 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                           onClick={(e) => e.stopPropagation()}
                         />
                       ) : (
-                        formatCurrency(savedInvestments[inv.id] !== undefined ? savedInvestments[inv.id] : inv.eur_amount, 'EUR')
+                        formatCurrency((savedInvestments[inv.id]?.eur_amount) ?? inv.eur_amount, 'EUR')
                       )}
                     </td>
                     <td className="px-6 py-4 text-center">
