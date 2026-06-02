@@ -274,7 +274,14 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4 text-right font-bold">
-                          {formatCurrency(broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0), 'EUR')}
+                          {(() => {
+                            const totalInitialLocal = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
+                            const totalCurrentLocal = broker.holdings.reduce((sum, inv) => sum + inv.current_price * inv.quantity, 0)
+                            const totalCurrentEur = brokerTotal
+                            const currentExchangeRate = totalCurrentLocal > 0 ? totalCurrentEur / totalCurrentLocal : 0
+                            const totalInitialEur = totalInitialLocal * currentExchangeRate
+                            return formatCurrency(totalInitialEur, 'EUR')
+                          })()}
                         </td>
                         <td className="px-6 py-4"></td>
                         <td className="px-6 py-4 text-right font-bold">
@@ -282,16 +289,24 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                         </td>
                         <td className="px-6 py-4 text-right font-bold">
                           {(() => {
-                            const totalInitial = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
-                            const change = brokerTotal - totalInitial
-                            return <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(change, 'EUR')}</span>
+                            const totalInitialLocal = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
+                            const totalCurrentLocal = broker.holdings.reduce((sum, inv) => sum + inv.current_price * inv.quantity, 0)
+                            const totalCurrentEur = brokerTotal
+                            const currentExchangeRate = totalCurrentLocal > 0 ? totalCurrentEur / totalCurrentLocal : 0
+                            const totalInitialEur = totalInitialLocal * currentExchangeRate
+                            const changeEur = totalCurrentEur - totalInitialEur
+                            return <span className={changeEur >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(changeEur, 'EUR')}</span>
                           })()}
                         </td>
                         <td className="px-6 py-4 text-right font-bold">
                           {(() => {
-                            const totalInitial = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
-                            const change = brokerTotal - totalInitial
-                            const pctChange = totalInitial > 0 ? (change / totalInitial * 100).toFixed(2) : 0
+                            const totalInitialLocal = broker.cost_basis + broker.holdings.reduce((sum, inv) => sum + inv.cost_basis, 0)
+                            const totalCurrentLocal = broker.holdings.reduce((sum, inv) => sum + inv.current_price * inv.quantity, 0)
+                            const totalCurrentEur = brokerTotal
+                            const currentExchangeRate = totalCurrentLocal > 0 ? totalCurrentEur / totalCurrentLocal : 0
+                            const totalInitialEur = totalInitialLocal * currentExchangeRate
+                            const changeEur = totalCurrentEur - totalInitialEur
+                            const pctChange = totalInitialEur > 0 ? (changeEur / totalInitialEur * 100).toFixed(2) : 0
                             return <span className={pctChange >= 0 ? 'text-green-600' : 'text-red-600'}>{pctChange}%</span>
                           })()}
                         </td>
@@ -402,7 +417,9 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                                   className="cursor-pointer hover:bg-blue-100 px-2 py-1 rounded inline-block"
                                   onClick={() => handleFieldClick(inv, 'cost_basis')}
                                 >
-                                  {formatCurrency(inv.cost_basis, 'EUR')}
+                                  {formatCurrency(inv.cost_basis, inv.currency)}
+                                  <br />
+                                  <span className="text-xs text-gray-500">{inv.currency}</span>
                                 </span>
                               )}
                             </td>
@@ -411,19 +428,33 @@ export default function InvestmentsTable({ investments, onUpdate }) {
                               <br />
                               <span className="text-gray-500">{inv.currency}</span>
                             </td>
-                            <td className="px-6 py-4 text-right font-medium">
-                              {formatCurrency(inv.eur_amount, 'EUR')}
+                            <td className="px-6 py-4 text-right text-sm">
+                              {formatCurrency(inv.current_price * inv.quantity, inv.currency)}
+                              <br />
+                              <span className="text-gray-500 font-medium">{formatCurrency(inv.eur_amount, 'EUR')}</span>
                             </td>
-                            <td className="px-6 py-4 text-right font-medium">
+                            <td className="px-6 py-4 text-right text-sm">
                               {(() => {
-                                const change = inv.eur_amount - inv.cost_basis
-                                return <span className={change >= 0 ? 'text-green-600' : 'text-red-600'}>{formatCurrency(change, 'EUR')}</span>
+                                const currentValueLocal = inv.current_price * inv.quantity
+                                const changeLocal = currentValueLocal - inv.cost_basis
+                                const currentExchangeRate = inv.eur_amount / currentValueLocal
+                                const changeEur = changeLocal * currentExchangeRate
+                                return (
+                                  <>
+                                    <span className={changeLocal >= 0 ? 'text-green-600' : 'text-red-600'}>
+                                      {formatCurrency(changeLocal, inv.currency)}
+                                    </span>
+                                    <br />
+                                    <span className={`text-gray-500 font-medium ${changeEur >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                      {formatCurrency(changeEur, 'EUR')}
+                                    </span>
+                                  </>
+                                )
                               })()}
                             </td>
                             <td className="px-6 py-4 text-right font-medium">
                               {(() => {
-                                const change = inv.eur_amount - inv.cost_basis
-                                const pctChange = inv.cost_basis > 0 ? (change / inv.cost_basis * 100).toFixed(2) : 0
+                                const pctChange = inv.cost_basis > 0 ? ((inv.current_price * inv.quantity - inv.cost_basis) / inv.cost_basis * 100).toFixed(2) : 0
                                 return <span className={pctChange >= 0 ? 'text-green-600' : 'text-red-600'}>{pctChange}%</span>
                               })()}
                             </td>
