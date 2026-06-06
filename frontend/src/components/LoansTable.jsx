@@ -1,12 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { loansAPI } from '../api'
 
 export default function LoansTable({ loans, onUpdate }) {
   const [editingId, setEditingId] = useState(null)
-  const [editData, setEditData] = useState({})
+  const [editField, setEditField] = useState(null)
+  const [editValue, setEditValue] = useState('')
   const [saving, setSaving] = useState(false)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [savedLoans, setSavedLoans] = useState({})
+  const inputRef = useRef(null)
   const [formData, setFormData] = useState({
     name: '',
     loan_type: 'mortgage',
@@ -22,31 +23,48 @@ export default function LoansTable({ loans, onUpdate }) {
     notes: '',
   })
 
-  const handleEditStart = (loan) => {
+  // Auto-select input when editing starts
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.select()
+    }
+  }, [editingId])
+
+  const handleEditStart = (loan, field) => {
     setEditingId(loan.id)
-    const saved = savedLoans[loan.id]
-    setEditData({
-      principal_left: saved?.principal_left !== undefined ? saved.principal_left : loan.principal_left,
-      next_payment_amount: saved?.next_payment_amount !== undefined ? saved.next_payment_amount : loan.next_payment_amount,
-      next_payment_date: saved?.next_payment_date !== undefined ? saved.next_payment_date : loan.next_payment_date,
-      notes: loan.notes || '',
-    })
+    setEditField(field)
+    setEditValue(loan[field]?.toString() || '')
   }
 
-  const handleEditSave = async (id) => {
+  const handleEditCancel = () => {
+    setEditingId(null)
+    setEditField(null)
+    setEditValue('')
+  }
+
+  const handleEditSave = async () => {
+    if (!editingId || !editField) return
+
     try {
       setSaving(true)
-      await loansAPI.update(id, editData)
-      setSavedLoans({ ...savedLoans, [id]: {
-        principal_left: parseFloat(editData.principal_left),
-        next_payment_amount: parseFloat(editData.next_payment_amount),
-        next_payment_date: editData.next_payment_date,
-      }})
+      await loansAPI.update(editingId, { [editField]: parseFloat(editValue) || editValue })
       setEditingId(null)
+      setEditField(null)
+      setEditValue('')
+      onUpdate()
     } catch (err) {
-      alert(`Error: ${err.message}`)
+      alert(`Error saving: ${err.message}`)
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      handleEditSave()
+    } else if (e.key === 'Escape') {
+      handleEditCancel()
     }
   }
 
@@ -159,76 +177,93 @@ export default function LoansTable({ loans, onUpdate }) {
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {editingId === loan.id ? (
-                      <input
-                        type="number"
-                        value={editData.principal_left}
-                        onChange={(e) => setEditData({ ...editData, principal_left: e.target.value })}
-                        onBlur={() => handleEditSave(loan.id)}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
-                        step="0.01"
-                        autoFocus
-                      />
-                    ) : (
-                      <span className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded"
-                        onClick={() => handleEditStart(loan)}>
-                        {formatCurrency(savedLoans[loan.id]?.principal_left !== undefined ? savedLoans[loan.id].principal_left : loan.principal_left)}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    {editingId === loan.id ? (
-                      <input
-                        type="number"
-                        value={editData.next_payment_amount}
-                        onChange={(e) => setEditData({ ...editData, next_payment_amount: e.target.value })}
-                        onBlur={() => handleEditSave(loan.id)}
-                        className="w-32 px-2 py-1 border border-gray-300 rounded text-right"
-                        step="0.01"
-                      />
-                    ) : (
-                      <span className="text-gray-700">{formatCurrency(savedLoans[loan.id]?.next_payment_amount !== undefined ? savedLoans[loan.id].next_payment_amount : loan.next_payment_amount)}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4">
-                    {editingId === loan.id ? (
-                      <input
-                        type="date"
-                        value={editData.next_payment_date}
-                        onChange={(e) => setEditData({ ...editData, next_payment_date: e.target.value })}
-                        onBlur={() => handleEditSave(loan.id)}
-                        className="px-2 py-1 border border-gray-300 rounded text-sm"
-                      />
-                    ) : (
-                      <span className="text-gray-700">{formatDate(savedLoans[loan.id]?.next_payment_date !== undefined ? savedLoans[loan.id].next_payment_date : loan.next_payment_date)}</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    {editingId === loan.id ? (
-                      <div className="flex gap-2 justify-center">
+                    {editingId === loan.id && editField === 'principal_left' ? (
+                      <div className="flex gap-1">
+                        <input
+                          ref={inputRef}
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="w-28 px-2 py-1 border border-gray-300 rounded text-right"
+                          step="0.01"
+                        />
                         <button
-                          onClick={() => handleEditSave(loan.id)}
+                          onClick={handleEditSave}
                           disabled={saving}
                           className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
                         >
                           Save
                         </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded"
+                        onClick={() => handleEditStart(loan, 'principal_left')}>
+                        {formatCurrency(loan.principal_left)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    {editingId === loan.id && editField === 'next_payment_amount' ? (
+                      <div className="flex gap-1">
+                        <input
+                          ref={inputRef}
+                          type="number"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="w-28 px-2 py-1 border border-gray-300 rounded text-right"
+                          step="0.01"
+                        />
                         <button
-                          onClick={() => setEditingId(null)}
-                          className="px-2 py-1 bg-gray-400 text-white rounded text-xs hover:bg-gray-500"
+                          onClick={handleEditSave}
+                          disabled={saving}
+                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
                         >
-                          Cancel
+                          Save
                         </button>
                       </div>
                     ) : (
-                      <button
-                        onClick={() => handleDeleteLoan(loan.id)}
-                        className="p-1 text-red-600 hover:bg-red-100 rounded transition"
-                        title="Delete"
-                      >
-                        🗑️
-                      </button>
+                      <span className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded"
+                        onClick={() => handleEditStart(loan, 'next_payment_amount')}>
+                        {formatCurrency(loan.next_payment_amount)}
+                      </span>
                     )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {editingId === loan.id && editField === 'next_payment_date' ? (
+                      <div className="flex gap-1">
+                        <input
+                          ref={inputRef}
+                          type="date"
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          className="px-2 py-1 border border-gray-300 rounded text-sm"
+                        />
+                        <button
+                          onClick={handleEditSave}
+                          disabled={saving}
+                          className="px-2 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700 disabled:opacity-50"
+                        >
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-700 cursor-pointer hover:bg-blue-100 px-2 py-1 rounded"
+                        onClick={() => handleEditStart(loan, 'next_payment_date')}>
+                        {formatDate(loan.next_payment_date)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <button
+                      onClick={() => handleDeleteLoan(loan.id)}
+                      className="p-1 text-red-600 hover:bg-red-100 rounded transition"
+                      title="Delete"
+                    >
+                      🗑️
+                    </button>
                   </td>
                 </tr>
               )

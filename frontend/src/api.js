@@ -24,6 +24,9 @@ export const investmentsAPI = {
 export const propertiesAPI = {
   list: () => api.get('/properties/'),
   get: (id) => api.get(`/properties/${id}`),
+  create: (data) => api.post('/properties/', data),
+  update: (id, data) => api.patch(`/properties/${id}`, data),
+  delete: (id) => api.delete(`/properties/${id}`),
 }
 
 export const loansAPI = {
@@ -53,6 +56,14 @@ export const snapshotsAPI = {
   list: () => api.get('/snapshots/'),
   latest: () => api.get('/snapshots/latest'),
   create: (data) => api.post('/snapshots/', data),
+}
+
+export const pensionFundsAPI = {
+  list: () => api.get('/pension-funds/'),
+  get: (id) => api.get(`/pension-funds/${id}`),
+  create: (data) => api.post('/pension-funds/', data),
+  update: (id, data) => api.patch(`/pension-funds/${id}`, data),
+  delete: (id) => api.delete(`/pension-funds/${id}`),
 }
 
 export default api

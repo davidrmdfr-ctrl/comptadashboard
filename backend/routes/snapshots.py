@@ -40,6 +40,12 @@ class SnapshotResponse(BaseModel):
         from_attributes = True
 
 
+class LatestSnapshotsResponse(BaseModel):
+    """Response model for latest snapshots endpoint"""
+    current: Optional[SnapshotResponse] = None
+    previous: Optional[SnapshotResponse] = None
+
+
 @router.get("/", response_model=list[SnapshotResponse])
 async def list_snapshots(db: Session = Depends(get_db)):
     """List all snapshots ordered by date desc"""
@@ -47,7 +53,7 @@ async def list_snapshots(db: Session = Depends(get_db)):
     return snapshots
 
 
-@router.get("/latest", response_model=dict)
+@router.get("/latest", response_model=LatestSnapshotsResponse)
 async def get_latest_snapshots(db: Session = Depends(get_db)):
     """Get the last 2 snapshots (current + previous month)"""
     snapshots = db.query(MonthlySnapshot).order_by(MonthlySnapshot.date.desc()).limit(2).all()

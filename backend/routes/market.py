@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from backend.database import get_db
-from backend.db import MarketData, CashAccount, Investment
+from backend.db import MarketData, CashAccount, Investment, PensionFund
 from backend.models.market import (
     PriceRefreshRequest,
     PriceRefreshResponse,
@@ -64,7 +64,30 @@ async def refresh_prices(
     if request.refresh_type in ("stock", "all"):
         for symbol in request.symbols:
             logger.info(f"Processing symbol: {symbol}")
-            price = MarketFetcher.fetch_stock_price(symbol)
+            
+            # Look up investment to get ISIN if available
+            investment = db.query(Investment).filter(Investment.symbol == symbol).first()
+            isin = None
+            ticker_symbol = None
+            currency = "USD"
+            
+            if investment:
+                # Safely access new columns (may not exist in old databases)
+                try:
+                    isin = getattr(investment, 'isin', None)
+                    ticker_symbol = getattr(investment, 'ticker_symbol', None)
+                    currency = investment.currency
+                except Exception as e:
+                    logger.warning(f"Could not access ISIN columns for {symbol}: {e}")
+            
+            # Use ticker_symbol if available, otherwise use symbol
+            fetch_symbol = ticker_symbol or symbol
+            
+            price = MarketFetcher.fetch_stock_price(
+                symbol=fetch_symbol,
+                currency=currency,
+                isin=isin
+            )
             if price is not None:
                 prices_fetched += 1
                 results[symbol] = price
@@ -73,7 +96,7 @@ async def refresh_prices(
                 market_data = MarketData(
                     symbol=symbol,
                     price=price,
-                    currency="USD",  # Assume USD for now, could be expanded
+                    currency=currency,
                     date=date.today(),
                     source="yfinance",
                 )
@@ -152,6 +175,27 @@ async def refresh_exchange_rates(
                 rates_updated += len(accounts)
             except Exception as e:
                 logger.error(f"Error updating accounts for {currency}: {e}")
+
+            # Update pension funds with new exchange rate
+            try:
+                funds = db.query(PensionFund).filter(PensionFund.currency == currency).all()
+                for fund in funds:
+                    fund.exchange_rate = rate
+                    fund.eur_amount = fund.current_value * rate  # Recalculate EUR amount
+                rates_updated += len(funds)
+            except Exception as e:
+                logger.error(f"Error updating pension funds for {currency}: {e}")
+
+            # Update investments with new exchange rate
+            try:
+                investments = db.query(Investment).filter(Investment.currency == currency).all()
+                for investment in investments:
+                    investment.exchange_rate = rate
+                    current_value = investment.quantity * investment.current_price
+                    investment.eur_amount = current_value * rate  # Recalculate EUR amount
+                rates_updated += len(investments)
+            except Exception as e:
+                logger.error(f"Error updating investments for {currency}: {e}")
 
     try:
         db.commit()

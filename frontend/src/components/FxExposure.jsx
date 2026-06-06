@@ -7,18 +7,22 @@ export default function FxExposure({ accounts, investments, previousSnapshot }) 
     // Aggregate accounts by currency
     accounts.forEach((account) => {
       if (!byCurrency[account.currency]) {
-        byCurrency[account.currency] = { eur: 0, quantity: 0 }
+        byCurrency[account.currency] = { eur: 0, exchange_rate: account.exchange_rate || 1.0, quantity: 0 }
       }
       byCurrency[account.currency].eur += account.eur_amount
+      byCurrency[account.currency].exchange_rate = account.exchange_rate || 1.0
     })
 
-    // Aggregate investments by currency
-    investments.forEach((inv) => {
-      if (!byCurrency[inv.currency]) {
-        byCurrency[inv.currency] = { eur: 0, quantity: 0 }
-      }
-      byCurrency[inv.currency].eur += inv.eur_amount
-    })
+    // Aggregate investments by currency (only holdings, not brokers)
+    investments
+      .filter(inv => !inv.is_broker)
+      .forEach((inv) => {
+        if (!byCurrency[inv.currency]) {
+          byCurrency[inv.currency] = { eur: 0, exchange_rate: inv.exchange_rate || 1.0, quantity: 0 }
+        }
+        byCurrency[inv.currency].eur += inv.eur_current_amount || 0
+        byCurrency[inv.currency].exchange_rate = inv.exchange_rate || 1.0
+      })
 
     return byCurrency
   }, [accounts, investments])
@@ -52,6 +56,7 @@ export default function FxExposure({ accounts, investments, previousSnapshot }) 
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="px-6 py-3 text-left font-semibold text-gray-700">Currency</th>
+                <th className="px-6 py-3 text-right font-semibold text-gray-700">Exchange Rate</th>
                 <th className="px-6 py-3 text-right font-semibold text-gray-700">EUR Exposure</th>
                 <th className="px-6 py-3 text-right font-semibold text-gray-700">% of Portfolio</th>
                 <th className="px-6 py-3 text-right font-semibold text-gray-700">vs Last Month EUR</th>
@@ -70,6 +75,7 @@ export default function FxExposure({ accounts, investments, previousSnapshot }) 
                   return (
                     <tr key={currency} className="hover:bg-gray-50">
                       <td className="px-6 py-4 font-medium text-gray-900">{currency}</td>
+                      <td className="px-6 py-4 text-right text-gray-700">{exp.exchange_rate.toFixed(6)}</td>
                       <td className="px-6 py-4 text-right font-medium">{formatCurrency(exp.eur)}</td>
                       <td className="px-6 py-4 text-right text-gray-700">{percentage.toFixed(1)}%</td>
                       <td className={`px-6 py-4 text-right font-medium ${deltaEur >= 0 ? 'text-green-600' : 'text-red-600'}`}>

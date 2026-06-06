@@ -32,14 +32,19 @@ class Investment(Base):
 
     id = Column(Integer, primary_key=True)
     symbol = Column(String(10), nullable=False)  # e.g., "DBS", "3 rue des roses"
+    isin = Column(String(12), nullable=True)  # e.g., "LU1261432659" for fund identification
+    ticker_symbol = Column(String(20), nullable=True)  # Exchange-specific ticker for yfinance (e.g., "FWRD.L", "FWRD.DE")
     name = Column(String(100), nullable=True)
     investment_type = Column(String(20), nullable=False)  # "stock", "etf", "bond", "crypto", "broker"
     quantity = Column(Float, nullable=False)
-    cost_basis = Column(Float, nullable=False)  # Total cost
-    cost_per_unit = Column(Float, nullable=True)
+    initial_amount = Column(Float, nullable=False)  # Total invested amount
+    cost_per_unit = Column(Float, nullable=True)  # initial_amount ÷ quantity
     currency = Column(String(3), nullable=False)  # Trading currency
-    eur_amount = Column(Float, nullable=False)  # Converted value in EUR
+    exchange_rate = Column(Float, default=1.0)  # Exchange rate for currency conversion
+    eur_initial_amount = Column(Float, nullable=False)  # Initial amount converted to EUR
     current_price = Column(Float, nullable=False)  # Latest price per unit
+    current_amount = Column(Float, nullable=False)  # Current value in original currency
+    eur_current_amount = Column(Float, nullable=False)  # Current value converted to EUR
     yield_pct = Column(Float, nullable=True)  # Yield or return %
     acquisition_date = Column(Date, nullable=True)
     account_name = Column(String(100), nullable=True)  # e.g., "HSBC HK", "Interactive Broker"
@@ -66,6 +71,8 @@ class Property(Base):
     purchase_price = Column(Float, nullable=False)
     current_value = Column(Float, nullable=False)
     currency = Column(String(3), default="EUR")
+    rental_income = Column(Float, default=0)  # Monthly rental income
+    coupon_rate = Column(Float, default=0)  # Yield %
     notes = Column(Text, nullable=True)
     last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -236,3 +243,27 @@ class Loan(Base):
 
     def __repr__(self):
         return f"<Loan {self.name} {self.principal_left}>"
+
+# ============================================================================
+# PENSION FUNDS
+# ============================================================================
+class PensionFund(Base):
+    __tablename__ = "pension_funds"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(100), nullable=False)  # e.g., "DBS SRS", "BNP Paribas"
+    provider = Column(String(100), nullable=True)  # e.g., "AXA", "Legal & General"
+    fund_type = Column(String(20), nullable=False)  # "workplace", "personal"
+    initial_amount = Column(Float, nullable=False)  # Initial investment amount in original currency
+    eur_initial_amount = Column(Float, nullable=False)  # Initial amount in EUR
+    current_amount = Column(Float, nullable=False)  # Current value in original currency
+    currency = Column(String(3), default="EUR")  # Currency of investment
+    exchange_rate = Column(Float, default=1.0)  # Exchange rate for currency conversion
+    eur_current_amount = Column(Float, nullable=False)  # Current value in EUR
+    acquisition_date = Column(Date, nullable=True)
+    expected_retirement_age = Column(Integer, nullable=True)
+    notes = Column(Text, nullable=True)
+    last_updated = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<PensionFund {self.name}>"

@@ -10,6 +10,7 @@ from backend.db.models import (
     MarketData,
     Forecast,
     Loan,
+    PensionFund,
 )
 
 __all__ = [
@@ -24,4 +25,5 @@ __all__ = [
     "MarketData",
     "Forecast",
     "Loan",
+    "PensionFund",
 ]

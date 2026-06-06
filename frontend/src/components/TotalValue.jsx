@@ -1,19 +1,23 @@
 import React, { useState } from 'react'
 import { snapshotsAPI } from '../api'
 
-export default function TotalValue({ accounts, investments, properties, previousSnapshot, onSnapshotSaved }) {
+export default function TotalValue({ accounts, investments, properties, pensionFunds = [], previousSnapshot, onSnapshotSaved }) {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState(null)
 
   // Calculate total in EUR
-  const accountsTotal = accounts.reduce((sum, acc) => sum + acc.eur_amount, 0)
-  const investmentsTotal = investments.reduce((sum, inv) => sum + inv.eur_amount, 0)
+  const accountsTotal = accounts.reduce((sum, acc) => sum + (acc.eur_amount || 0), 0)
+  // Only count holdings (is_broker=false), not brokers themselves
+  const investmentsTotal = investments
+    .filter(inv => !inv.is_broker)
+    .reduce((sum, inv) => sum + (inv.eur_current_amount || 0), 0)
+  const pensionTotal = pensionFunds.reduce((sum, fund) => sum + (fund.eur_current_amount || 0), 0)
   const propertiesTotal = properties.reduce((sum, prop) => {
     const equity = prop.latest_equity?.net_equity || 0
     return sum + equity
   }, 0)
 
-  const total = accountsTotal + investmentsTotal + propertiesTotal
+  const total = accountsTotal + investmentsTotal + pensionTotal + propertiesTotal
 
   const handleSaveSnapshot = async () => {
     try {
@@ -76,7 +80,7 @@ export default function TotalValue({ accounts, investments, properties, previous
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-4 text-sm mb-6">
+      <div className="grid grid-cols-4 gap-4 text-sm mb-6">
         <div className="bg-blue-500 bg-opacity-50 rounded-lg p-4">
           <p className="opacity-75 mb-1">Cash</p>
           <p className="text-2xl font-bold">{formatCurrency(accountsTotal)}</p>
@@ -84,6 +88,10 @@ export default function TotalValue({ accounts, investments, properties, previous
         <div className="bg-blue-500 bg-opacity-50 rounded-lg p-4">
           <p className="opacity-75 mb-1">Investments</p>
           <p className="text-2xl font-bold">{formatCurrency(investmentsTotal)}</p>
+        </div>
+        <div className="bg-blue-500 bg-opacity-50 rounded-lg p-4">
+          <p className="opacity-75 mb-1">Pension</p>
+          <p className="text-2xl font-bold">{formatCurrency(pensionTotal)}</p>
         </div>
         <div className="bg-blue-500 bg-opacity-50 rounded-lg p-4">
           <p className="opacity-75 mb-1">Properties</p>

@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { accountsAPI, investmentsAPI, propertiesAPI, loansAPI, snapshotsAPI } from './api'
+import { accountsAPI, investmentsAPI, propertiesAPI, loansAPI, snapshotsAPI, pensionFundsAPI } from './api'
 import RefreshBar from './components/RefreshBar'
 import TotalValue from './components/TotalValue'
 import AccountsTable from './components/AccountsTable'
 import InvestmentsTable from './components/InvestmentsTable'
 import PropertiesTable from './components/PropertiesTable'
 import LoansTable from './components/LoansTable'
+import PensionFundsTable from './components/PensionFundsTable'
 import FxExposure from './components/FxExposure'
 
 export default function App() {
@@ -13,6 +14,7 @@ export default function App() {
   const [investments, setInvestments] = useState([])
   const [properties, setProperties] = useState([])
   const [loans, setLoans] = useState([])
+  const [pensionFunds, setPensionFunds] = useState([])
   const [previousSnapshot, setPreviousSnapshot] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -22,12 +24,13 @@ export default function App() {
       setLoading(true)
 
       // Load main data immediately (don't wait for auto-import)
-      const [accountsRes, investmentsRes, propertiesRes, loansRes, snapshotsRes] = await Promise.all([
+      const [accountsRes, investmentsRes, propertiesRes, loansRes, snapshotsRes, pensionFundsRes] = await Promise.all([
         accountsAPI.list(),
         investmentsAPI.list(),
         propertiesAPI.list(),
         loansAPI.list(),
         snapshotsAPI.latest(),
+        pensionFundsAPI.list(),
       ])
 
       // Auto-import runs in background (non-blocking)
@@ -39,6 +42,7 @@ export default function App() {
       setInvestments(investmentsRes.data)
       setProperties(propertiesRes.data)
       setLoans(loansRes.data)
+      setPensionFunds(pensionFundsRes.data)
       setPreviousSnapshot(snapshotsRes.data?.previous || null)
       setError(null)
     } catch (err) {
@@ -99,6 +103,7 @@ export default function App() {
           accounts={accounts}
           investments={investments}
           properties={properties}
+          pensionFunds={pensionFunds}
           previousSnapshot={previousSnapshot}
           onSnapshotSaved={loadData}
         />
@@ -119,6 +124,14 @@ export default function App() {
           <InvestmentsTable investments={investments} onUpdate={loadData} />
         </div>
 
+        {/* Pension Funds */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h2 className="text-xl font-bold text-gray-900">Pension Funds</h2>
+          </div>
+          <PensionFundsTable pensionFunds={pensionFunds} onUpdate={loadData} />
+        </div>
+
         {/* FX Exposure */}
         <FxExposure accounts={accounts} investments={investments} previousSnapshot={previousSnapshot} />
 
@@ -135,7 +148,7 @@ export default function App() {
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-xl font-bold text-gray-900">Properties</h2>
           </div>
-          <PropertiesTable properties={properties} />
+          <PropertiesTable properties={properties} onUpdate={loadData} />
         </div>
       </div>
     </div>

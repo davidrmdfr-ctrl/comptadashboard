@@ -4,6 +4,7 @@ Market data fetcher service.
 Pulls live prices from free sources:
 - yfinance: Stocks, ETFs, indices (Yahoo Finance)
 - CoinGecko: Crypto (no auth required)
+- ISIN mapping: Maps fund ISINs to exchange-specific ticker symbols
 """
 
 import logging
@@ -23,17 +24,57 @@ except ImportError:
     requests = None
 
 
+# ISIN to ticker symbol mapping (common funds and ETFs)
+# Format: ISIN -> list of (ticker, exchange, currency) tuples
+ISIN_TO_TICKER = {
+    "LU1261432659": [  # Fidelity World Fund A-Acc-EUR
+        ("0P00016FY4.F", "Euronext Frankfurt", "EUR"),
+    ],
+    # Add more ISINs as needed
+}
+
+
 class MarketFetcher:
     """Fetch market prices from external sources"""
 
     @staticmethod
-    def fetch_stock_price(symbol: str, currency: str = "USD") -> Optional[float]:
+    def get_ticker_for_isin(isin: str, preferred_currency: str = "EUR") -> Optional[str]:
+        """
+        Get the best ticker symbol for an ISIN, preferring the specified currency.
+
+        Args:
+            isin: ISIN code (e.g., "LU1261432659")
+            preferred_currency: Preferred currency (default "EUR")
+
+        Returns:
+            Ticker symbol or None if not found
+        """
+        if isin not in ISIN_TO_TICKER:
+            logger.warning(f"ISIN {isin} not in mapping - using as ticker directly (may fail)")
+            return None
+
+        tickers = ISIN_TO_TICKER[isin]
+
+        # Try to find preferred currency first
+        for ticker, exchange, currency in tickers:
+            if currency == preferred_currency:
+                logger.info(f"ISIN {isin} -> {ticker} ({exchange}, {currency})")
+                return ticker
+
+        # Fallback to first available
+        ticker, exchange, currency = tickers[0]
+        logger.info(f"ISIN {isin} -> {ticker} ({exchange}, {currency}) [preferred {preferred_currency} not available]")
+        return ticker
+
+    @staticmethod
+    def fetch_stock_price(symbol: str, currency: str = "USD", isin: str = None) -> Optional[float]:
         """
         Fetch stock/ETF price from Yahoo Finance.
 
         Args:
-            symbol: Ticker symbol (e.g., "DBS.SI" for DBS Singapore)
+            symbol: Ticker symbol (e.g., "DBS.SI" for DBS Singapore) or ISIN if ticker_symbol not available
             currency: Currency of the ticker
+            isin: Optional ISIN to resolve to correct ticker symbol
 
         Returns:
             Current price or None if fetch fails
@@ -42,21 +83,31 @@ class MarketFetcher:
             logger.warning("yfinance not installed, skipping stock fetch")
             return None
 
+        # Try to resolve ISIN to ticker if provided
+        actual_symbol = symbol
+        if isin:
+            ticker_from_isin = MarketFetcher.get_ticker_for_isin(isin, currency)
+            if ticker_from_isin:
+                actual_symbol = ticker_from_isin
+                logger.info(f"Resolved ISIN {isin} to ticker {actual_symbol}")
+
         try:
-            logger.info(f"Fetching price for {symbol}...")
-            ticker = yf.Ticker(symbol)
-            data = ticker.history(period="1d")
-
-            if data.empty:
-                logger.warning(f"No data for {symbol} - ticker history is empty")
-                return None
-
-            price = data["Close"].iloc[-1]
-            logger.info(f"✓ Fetched {symbol}: {price} {currency}")
-            return float(price)
+            logger.info(f"Fetching price for {actual_symbol}...")
+            ticker = yf.Ticker(actual_symbol)
+            
+            # Try 1 day first, fall back to longer periods if no data
+            for period in ["1d", "5d", "1mo", "6mo"]:
+                data = ticker.history(period=period)
+                if not data.empty:
+                    price = data["Close"].iloc[-1]
+                    logger.info(f"✓ Fetched {actual_symbol}: {price} {currency} (period={period})")
+                    return float(price)
+            
+            logger.warning(f"No data for {actual_symbol} - tried periods: 1d, 5d, 1mo, 6mo")
+            return None
 
         except Exception as e:
-            logger.error(f"✗ Error fetching {symbol}: {e}")
+            logger.error(f"✗ Error fetching {actual_symbol}: {e}")
             return None
 
     @staticmethod
